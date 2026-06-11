@@ -1,5 +1,7 @@
 # Skills (internal knowledge files — do not commit)
 *.skill
+FableContext/
+skills/
 
 # Build output
 dist/

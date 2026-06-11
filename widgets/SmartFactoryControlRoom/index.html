@@ -6,6 +6,7 @@
   <title>Smart Factory Control Room</title>
   <link rel="stylesheet" href="styles/base.css">
   <link rel="stylesheet" href="styles/widgets.css">
+  <link rel="stylesheet" href="styles/twin.css">
 </head>
 <body>
   <!-- The entire UI is rendered by the platform from configuration. -->
@@ -44,6 +45,19 @@
   <script src="src/ui/navigation.js"></script>
   <script src="src/ui/app-shell.js"></script>
 
+  <!-- ═══ Digital twin engine (Factory Map page — see docs/factory-map.md) ═ -->
+  <script src="src/twin/twin-store.js"></script>
+  <script src="src/twin/twin-model.js"></script>
+  <script src="src/twin/twin-camera.js"></script>
+  <script src="src/twin/twin-data.js"></script>
+  <script src="src/twin/twin-router.js"></script>
+  <script src="src/twin/twin-renderer.js"></script>
+  <script src="src/twin/twin-render-connections.js"></script>
+  <script src="src/twin/twin-minimap.js"></script>
+  <script src="src/twin/twin-interactions.js"></script>
+  <script src="src/twin/twin-toolbar.js"></script>
+  <script src="src/twin/twin-panels.js"></script>
+
   <!-- ═══ Widget library (add new widget types here) ═════════════════════ -->
   <script src="src/widgets/kpi-card.js"></script>
   <script src="src/widgets/time-series.js"></script>
@@ -54,8 +68,7 @@
   <script src="src/widgets/alarm-list.js"></script>
   <script src="src/widgets/data-table.js"></script>
   <script src="src/widgets/machine-grid.js"></script>
-  <script src="src/widgets/factory-map.js"></script>
-  <script src="src/widgets/zone-details.js"></script>
+  <script src="src/widgets/factory-twin.js"></script>
   <script src="src/widgets/energy-flow.js"></script>
 
   <!-- ═══ Configuration (data only — this is what site engineers edit) ═══ -->
@@ -64,7 +77,9 @@
   <script src="config/states.config.js"></script>
   <script src="config/tags.config.js"></script>
   <script src="config/machines.config.js"></script>
-  <script src="config/factory-layout.config.js"></script>
+  <script src="config/twin/twin.config.js"></script>
+  <script src="config/twin/twin.layout.config.js"></script>
+  <script src="config/twin/twin.connections.config.js"></script>
   <script src="config/alarm-rules.config.js"></script>
   <script src="config/dashboards/overview.dashboard.js"></script>
   <script src="config/dashboards/energy.dashboard.js"></script>

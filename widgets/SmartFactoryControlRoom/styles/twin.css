@@ -1,0 +1,464 @@
+/* ============================================================================
+ * styles/twin.css — factory digital twin (Factory Map page)
+ * ----------------------------------------------------------------------------
+ * Chrome around the twin canvas: toolbar, search, filter panel, legend,
+ * minimap, tooltip, context menu, detail panel. Every color comes from the
+ * theme CSS variables (--c-*) written by the theme engine — switching
+ * light/dark restyles all of this with zero JS work.
+ * ========================================================================== */
+
+.twin-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  background: var(--c-twin-canvas);
+}
+
+.twin-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;        /* we handle pan/pinch ourselves */
+  user-select: none;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.twin-toolbar {
+  position: absolute;
+  top: 10px; left: 10px; right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-bg-card) 88%, transparent);
+  border: 1px solid var(--c-border);
+  backdrop-filter: blur(6px);
+  z-index: 5;
+}
+
+.twin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-raised);
+  color: var(--c-text-2);
+  cursor: pointer;
+}
+.twin-btn:hover { color: var(--c-text-1); border-color: var(--c-border-strong); }
+
+.twin-sep { width: 1px; height: 20px; background: var(--c-border); margin: 0 2px; }
+
+/* ── Search ──────────────────────────────────────────────────────────────── */
+
+.twin-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 28px;
+  min-width: 220px;
+  flex: 0 1 280px;
+  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-raised);
+  color: var(--c-text-3);
+}
+.twin-search-input {
+  flex: 1;
+  border: none; outline: none; background: transparent;
+  color: var(--c-text-1);
+  font-size: 12px;
+}
+.twin-search-results {
+  display: none;
+  position: absolute;
+  top: 32px; left: 0; right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+.twin-search-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--c-text-1);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.twin-search-item:hover { background: var(--c-bg-raised); }
+.twin-search-kind {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-3);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  min-width: 52px;
+  text-align: center;
+}
+
+/* ── Mode badge + coverage chip ──────────────────────────────────────────── */
+
+.twin-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--c-warn);
+  background: color-mix(in srgb, var(--c-warn) 14%, transparent);
+  color: var(--c-warn);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+}
+.twin-mode-badge .twin-mode-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.twin-mode-badge.live {
+  border-color: var(--c-good);
+  background: color-mix(in srgb, var(--c-good) 14%, transparent);
+  color: var(--c-good);
+}
+.twin-mode-badge.live .twin-mode-dot { animation: twin-pulse 1.6s infinite; }
+@keyframes twin-pulse { 50% { opacity: 0.25; } }
+
+.twin-coverage {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c-text-2);
+  border: 1px dashed var(--c-border-strong);
+  border-radius: 12px;
+  padding: 5px 10px;
+}
+
+/* ── Filter panel ────────────────────────────────────────────────────────── */
+
+.twin-filter-panel {
+  display: none;
+  position: absolute;
+  top: 56px; left: 10px;
+  width: 220px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-bg-card) 94%, transparent);
+  z-index: 6;
+}
+.twin-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-1);
+  margin-bottom: 8px;
+}
+.twin-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: var(--c-text-1);
+  cursor: pointer;
+}
+.twin-filter-row.off { color: var(--c-text-3); }
+.twin-filter-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 8px;
+  font-size: 10px;
+  color: var(--c-text-3);
+}
+
+.twin-swatch {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.twin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 11px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-raised);
+  color: var(--c-text-2);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.twin-chip.active {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+}
+
+/* ── Legend + minimap ────────────────────────────────────────────────────── */
+
+.twin-legend {
+  position: absolute;
+  bottom: 10px; left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 50%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-bg-card) 88%, transparent);
+  z-index: 4;
+}
+.twin-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--c-text-2);
+}
+
+.twin-minimap {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  cursor: crosshair;
+  z-index: 4;
+}
+
+/* ── Tooltip + context menu ──────────────────────────────────────────────── */
+
+.twin-tooltip {
+  display: none;
+  position: absolute;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-raised);
+  color: var(--c-text-1);
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 9;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.twin-tip-title { font-weight: 700; margin-bottom: 4px; }
+.twin-tip-dim { color: var(--c-text-3); font-weight: 400; }
+.twin-tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 1px 0;
+  color: var(--c-text-2);
+}
+.twin-tip-row b { color: var(--c-text-1); }
+
+.twin-menu {
+  display: none;
+  position: absolute;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+.twin-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--c-text-1);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.twin-menu-item:hover { background: var(--c-bg-raised); }
+
+/* ── Detail panel ────────────────────────────────────────────────────────── */
+
+.twin-detail {
+  position: absolute;
+  top: 56px; right: 10px; bottom: 10px;
+  width: 280px;
+  padding: 12px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-bg-card) 95%, transparent);
+  transform: translateX(110%);
+  transition: transform 0.18s ease;
+  z-index: 5;
+}
+.twin-detail.open { transform: translateX(0); }
+
+.twin-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.twin-detail-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--c-text-3);
+}
+.twin-detail-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--c-text-1);
+  margin: 4px 0 8px;
+}
+
+.twin-crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+}
+.twin-crumb-link {
+  border: none;
+  background: transparent;
+  color: var(--c-accent);
+  font-size: 10.5px;
+  cursor: pointer;
+  padding: 1px 2px;
+}
+.twin-crumb-link:hover { text-decoration: underline; }
+.twin-crumb-sep { color: var(--c-text-3); }
+
+.twin-floors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 10px;
+}
+
+.twin-kicker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--c-text-3);
+  margin: 8px 0 4px;
+}
+
+.twin-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 7px 9px;
+  margin: 4px 0;
+  border-radius: 7px;
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  font-size: 12px;
+  color: var(--c-text-1);
+}
+.twin-stat .twin-kicker { margin: 0; flex: 1; }
+
+.twin-state-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.twin-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px dashed var(--c-border-strong);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--c-text-2);
+}
+
+.twin-conn-list { margin-top: 6px; }
+.twin-conn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 2px 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.twin-conn-row:hover { background: var(--c-bg-raised); border-color: var(--c-border); }
+.twin-conn-row.static { cursor: default; }
+.twin-conn-row.static:hover { background: transparent; border-color: transparent; }
+.twin-conn-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.twin-conn-row b { color: var(--c-text-1); font-size: 11px; }
+
+/* Binding wiring status (sim / live / waiting / unwired) */
+.twin-bind-chip {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 9px;
+  border: 1px solid;
+}
+.twin-bind-chip.sim     { color: var(--c-warn);  border-color: var(--c-warn); }
+.twin-bind-chip.live    { color: var(--c-good);  border-color: var(--c-good); }
+.twin-bind-chip.waiting { color: var(--c-info);  border-color: var(--c-info); }
+.twin-bind-chip.unwired { color: var(--c-text-3); border-color: var(--c-border-strong); border-style: dashed; }
+
+.twin-rule {
+  font-size: 11px;
+  color: var(--c-text-2);
+  padding: 3px 0;
+  font-family: Consolas, monospace;
+}
+
+.twin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}

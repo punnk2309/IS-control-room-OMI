@@ -242,76 +242,8 @@
 .stat-value { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-trend { font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
 
-/* ── factory-map ────────────────────────────────────────────────────────── */
-
-.map-legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.map-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--c-text-2); }
-
-.factory-map-wrap {
-  flex: 1;
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-bg-surface);
-  overflow: hidden;
-  display: flex;
-}
-.factory-map-svg { width: 100%; height: 100%; min-height: 380px; display: block; }
-
-.map-zone rect { transition: stroke-width 0.15s; }
-.map-zone.clickable { cursor: pointer; }
-.map-zone.clickable:hover rect { stroke-width: 0.6; }
-.map-zone.selected rect { stroke-width: 0.8; filter: drop-shadow(0 0 1.5px currentColor); }
-
-.map-zone-label { font-size: 2.1px; font-weight: 700; fill: var(--c-text-1); }
-.map-zone-value { font-size: 1.9px; font-weight: 700; fill: var(--c-text-2); }
-.map-zone-error { font-size: 2px; font-weight: 800; }
-
-/* ── zone-details ───────────────────────────────────────────────────────── */
-
-.zone-details { display: flex; flex-direction: column; }
-
-.zone-kicker {
-  font-size: 10px; color: var(--c-text-3);
-  text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;
-}
-.zone-name { font-size: 17px; font-weight: 800; margin-top: 3px; }
-.zone-name-block { margin-bottom: 14px; }
-
-.zone-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.zone-stat {
-  border: 1px solid var(--c-border);
-  border-radius: 7px;
-  background: var(--c-bg-surface);
-  padding: 10px 12px;
-}
-.zone-stat-label {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 10px; color: var(--c-text-3); font-weight: 600;
-}
-.zone-stat-label .icon { color: var(--c-accent); }
-.zone-stat-value { font-size: 17px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
-
-.zone-state-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-.zone-state-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 10px; font-weight: 600; color: var(--c-text-2);
-  border: 1px solid var(--c-border);
-  border-radius: 4px;
-  padding: 3px 8px;
-}
-
-.zone-hint {
-  margin-top: 10px;
-  border: 1px solid color-mix(in srgb, var(--c-info) 30%, transparent);
-  background: color-mix(in srgb, var(--c-info) 7%, transparent);
-  border-radius: 7px;
-  padding: 10px 12px;
-}
-.zone-hint-title {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 700; color: var(--c-info);
-}
-.zone-hint-text { font-size: 11px; color: var(--c-text-2); margin-top: 5px; line-height: 1.45; }
+/* The Factory Map page is the factory-twin widget — its styles live in
+ * styles/twin.css (everything theme-token driven). */
 
 /* ── energy-flow ────────────────────────────────────────────────────────── */
 

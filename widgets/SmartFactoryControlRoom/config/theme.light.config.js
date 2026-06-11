@@ -42,5 +42,34 @@ SFP.config.define('theme.light', {
     'chart-solar':   '#ea580c',
     'chart-battery': '#059669',
     'chart-grid':    '#2563eb',
+
+    /* ── Digital twin canvas (factory map page) ──────────────────────────
+     * Designed light palette (not an inversion): paper-like canvas,
+     * darker saturated utility lines for print/projector readability. */
+    'twin-canvas':         '#e7ebf4',
+    'twin-grid':           '#d9dfec',
+    'twin-grid-major':     '#cdd5e6',
+    'twin-zone-fill':      '#f7f9fd',
+    'twin-zone-border':    '#9fb0cc',
+    'twin-zone-label':     '#26334f',
+    'twin-subzone-fill':   '#eef2f9',
+    'twin-subzone-border': '#b3c0d8',
+    'twin-machine-fill':   '#ffffff',
+    'twin-machine-border': '#8d9fc0',
+    'twin-label':          '#16203a',
+    'twin-label-dim':      '#5d6a88',
+    'twin-select':         '#0284c7',
+    'twin-hover':          '#0369a1',
+    'twin-nodata':         '#a4aec4',
+
+    /* Utility systems — darker than the dark theme's so they hold contrast
+     * against the light canvas. */
+    'util-electrical': '#b45309',
+    'util-product':    '#0369a1',
+    'util-steam':      '#dc2626',
+    'util-air':        '#0d9488',
+    'util-water':      '#2563eb',
+    'util-condensate': '#9333ea',
+    'util-gas':        '#ea580c',
   },
 });

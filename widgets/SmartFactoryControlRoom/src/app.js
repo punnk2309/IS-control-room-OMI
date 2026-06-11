@@ -59,9 +59,12 @@
     SFP.runtime.mode = urlParams.get('mode') || resolveMode(properties, initReceived);
     hub.mode = SFP.runtime.mode;
 
-    /* Theme before any widget renders (CSS variables + chart defaults). */
+    /* Theme before any widget renders (CSS variables + chart defaults).
+     * Priority: URL override > user's persisted toggle choice > OMI property
+     * > app config default. */
     SFP.ui.theme.apply(
       urlParams.get('theme') ||
+      SFP.ui.theme.savedId() ||
       (properties.theme ? String(properties.theme).toLowerCase() : appCfg.theme)
     );
 

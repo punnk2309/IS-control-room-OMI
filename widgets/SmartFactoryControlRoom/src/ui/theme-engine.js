@@ -20,6 +20,13 @@
 
     currentId: function () { return current; },
 
+    /** Theme saved by a previous session (toolbar toggle), or null.
+     *  localStorage may be unavailable in some embedded webviews — treat
+     *  persistence as best-effort. */
+    savedId: function () {
+      try { return localStorage.getItem('sfp.theme'); } catch (err) { return null; }
+    },
+
     apply: function (themeId) {
       var cfg = SFP.config.get('theme.' + themeId, true) ||
                 SFP.config.get('theme.dark');
@@ -29,8 +36,14 @@
       });
       document.documentElement.setAttribute('data-theme', themeId);
       current = themeId;
+      try { localStorage.setItem('sfp.theme', themeId); } catch (err) { /* best-effort */ }
       this._applyChartDefaults();
       SFP.bus.emit('theme:changed', { themeId: themeId });
+    },
+
+    /** Convenience for toolbar toggles: dark <-> light. */
+    toggle: function () {
+      this.apply(current === 'dark' ? 'light' : 'dark');
     },
 
     /** Resolve a color token ('accent', 'state-running') to its value.

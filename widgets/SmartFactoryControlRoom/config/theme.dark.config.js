@@ -50,5 +50,35 @@ SFP.config.define('theme.dark', {
     'chart-solar':   '#fb923c',
     'chart-battery': '#34d399',
     'chart-grid':    '#60a5fa',
+
+    /* ── Digital twin canvas (factory map page) ──────────────────────────
+     * The twin renderer reads ONLY these tokens — never literal colors —
+     * so light/dark both restyle the whole canvas from here. */
+    'twin-canvas':         '#060a12',
+    'twin-grid':           '#101829',
+    'twin-grid-major':     '#16203a',
+    'twin-zone-fill':      '#0d1526',
+    'twin-zone-border':    '#2c3a58',
+    'twin-zone-label':     '#cdd6ee',
+    'twin-subzone-fill':   '#121c31',
+    'twin-subzone-border': '#33425f',
+    'twin-machine-fill':   '#1a2540',
+    'twin-machine-border': '#46587e',
+    'twin-label':          '#e8ecf8',
+    'twin-label-dim':      '#8d99b8',
+    'twin-select':         '#38bdf8',
+    'twin-hover':          '#7dd3fc',
+    'twin-nodata':         '#4b5670',
+
+    /* Utility systems (connection colors + filter legend). Adding a new
+     * utility = a token here (and in theme.light) + an entry in
+     * config/twin/twin.config.js — no render code changes. */
+    'util-electrical': '#fbbf24',
+    'util-product':    '#38bdf8',
+    'util-steam':      '#f87171',
+    'util-air':        '#5eead4',
+    'util-water':      '#60a5fa',
+    'util-condensate': '#c084fc',
+    'util-gas':        '#fb923c',
   },
 });

@@ -52,7 +52,7 @@
 
         var zones = {};
         ctx.machines.list().forEach(function (m) { zones[m.zone] = true; });
-        var layout = SFP.config.get('factoryLayout', true);
+        var layout = SFP.config.get('twin.layout', true);
         var zoneLabel = function (zoneId) {
           var zone = layout && layout.zones.filter(function (z) { return z.id === zoneId; })[0];
           return zone ? zone.label : zoneId;
