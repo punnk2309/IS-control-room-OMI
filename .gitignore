@@ -1,3 +1,6 @@
+# Skills (internal knowledge files — do not commit)
+*.skill
+
 # Build output
 dist/
 *.cwp
@@ -20,3 +23,4 @@ desktop.ini
 # Secrets
 .env
 *.key
+
