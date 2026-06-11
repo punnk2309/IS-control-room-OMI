@@ -148,7 +148,7 @@ Reads navigation params (`#/machines?zone=welding&state=error`). Only the
 machines on the visible page hold datapoint subscriptions — safe for large
 fleets.
 
-### factory-map / zone-details
+### factory-twin
 See [factory-map.md](factory-map.md).
 
 ### energy-flow
@@ -161,7 +161,7 @@ Add a source (e.g. wind) by adding an entry — connectors and shares adapt.
 
 ## Cross-dashboard navigation
 
-Widgets can navigate with parameters (used by zone-details quick actions):
+Widgets can navigate with parameters (used by factory-twin detail actions):
 
 ```js
 navigate: { page: 'machines', params: { zone: '{zone}' } }

@@ -149,6 +149,12 @@
           id: cfg.id, kind: 'zone',
           label: cfg.label, sublabel: '',
           rect: { x: cfg.rect.x, y: cfg.rect.y, w: cfg.rect.w, h: cfg.rect.h },
+          /* Optional non-rectangular outline: points relative to rect origin
+           * (drawn instead of the rect; rect stays the bounding box that
+           * children are positioned against). */
+          poly: cfg.points ? cfg.points.map(function (p) {
+            return { x: cfg.rect.x + p[0], y: cfg.rect.y + p[1] };
+          }) : null,
           parentId: null, zoneId: cfg.id,
           gates: [],
           floors: cfg.floors
@@ -169,6 +175,26 @@
             zone.subzoneIds.push(subzone.id);
           });
         });
+      });
+
+      /* ── External nodes ────────────────────────────────────────────────
+       * Off-site endpoints (city grid, customer dispatch, river intake…)
+       * declared in twin.connections config. They render as ring nodes so
+       * flows entering/leaving the factory terminate visibly instead of
+       * ending mid-air. Referenced as 'external:<id>'. */
+      model.externalNodes = [];
+      (connCfg.externals || []).forEach(function (cfg) {
+        var size = cfg.size || 52;
+        model.externalNodes.push(addElement({
+          id: cfg.id, kind: 'external',
+          label: cfg.label, sublabel: 'External node',
+          shape: 'circle',
+          rect: { x: cfg.x - size / 2, y: cfg.y - size / 2, w: size, h: size },
+          parentId: null, zoneId: null,
+          gates: [], floors: null,
+          bindings: {},
+          style: null,
+        }));
       });
 
       /* ── Connections ───────────────────────────────────────────────── */

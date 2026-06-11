@@ -62,15 +62,52 @@
         states: ctx.states, machines: ctx.machines, nav: ctx.nav, onBus: ctx.onBus,
       });
 
+      /* Visual layout editor (header pencil toggle). Edits write config
+       * overrides; this rebuild swaps the fresh model into every module. */
+      function rebuildModel() {
+        model = SFP.twin.model.build();
+        renderer.model = model;
+        interactions.model = model;
+        toolbar.model = model;
+        panel.model = model;
+        editor.model = model;
+        data._trackModel(model);       // subscribe any newly added bindings
+        renderer._topoKey = null;      // force connection re-route
+      }
+      var editor = new SFP.twin.Editor({
+        root: root, canvas: canvas, renderer: renderer, camera: camera,
+        model: model, store: store, menuEl: menu, rebuild: rebuildModel,
+      });
+      interactions.editor = editor;
+      ctx.onBus('edit:modeChanged', function (e) { editor.setActive(!!e.on); });
+      if (SFP.runtime.editMode) { editor.setActive(true); }
+
       /* ── Sizing ────────────────────────────────────────────────────── */
+      var lastHeight = 0;
       function resize() {
+        /* Fill the viewport down to the bottom edge (minus the page
+         * padding) so the map hugs the bottom of the screen regardless of
+         * header/tab-bar height. Guarded so the ResizeObserver this change
+         * re-triggers settles instead of looping. */
+        var top = root.getBoundingClientRect().top;
+        var height = Math.max(420, Math.round(window.innerHeight - top - 18));
+        if (height !== lastHeight) {
+          lastHeight = height;
+          root.style.height = height + 'px';
+        }
         renderer.resize();
         /* First mount: fit the whole site; later mounts restore the saved
-         * viewport (page navigation / theme switch round-trips). */
-        if (!sized) {
+         * viewport (page navigation / theme switch round-trips). Skipped
+         * while the widget is still detached (the dashboard renderer
+         * attaches the grid after creating widgets) — the ResizeObserver
+         * re-runs this once the canvas has a real size. */
+        if (!sized && camera.viewW > 10) {
           sized = true;
           var saved = store.get().camera;
-          if (saved) {
+          if (ctx.params.zone && model.elements[ctx.params.zone]) {
+            /* Deep link (#/factory-map?zone=welding): zoom to the zone. */
+            camera.fitRect(model.elements[ctx.params.zone].rect, false);
+          } else if (saved) {
             camera.cx = saved.cx; camera.cy = saved.cy; camera.zoom = saved.zoom;
           } else {
             camera.fitWorld(false);
@@ -87,19 +124,24 @@
       window.addEventListener('resize', resize);
       resize();
 
-      /* Deep-link support: #/factory-map?zone=welding zooms to the zone. */
+      /* Deep-link selection (the zoom itself happens on first sizing). */
       if (ctx.params.zone && model.elements[ctx.params.zone]) {
-        camera.fitRect(model.elements[ctx.params.zone].rect, false);
         store.select('element', ctx.params.zone);
       }
 
       /* ── Store-driven chrome visibility ────────────────────────────── */
+      function minimapShown() {
+        /* Hidden in edit mode — the palette occupies its corner. */
+        return store.get().minimapVisible && !SFP.runtime.editMode;
+      }
+      function refreshMinimap() {
+        minimapCanvas.style.display = minimapShown() ? 'block' : 'none';
+      }
       var unsubStore = store.on(function (changed) {
-        if (changed.indexOf('minimapVisible') >= 0) {
-          minimapCanvas.style.display = store.get().minimapVisible ? 'block' : 'none';
-        }
+        if (changed.indexOf('minimapVisible') >= 0) { refreshMinimap(); }
       });
-      minimapCanvas.style.display = store.get().minimapVisible ? 'block' : 'none';
+      ctx.onBus('edit:modeChanged', refreshMinimap);
+      refreshMinimap();
 
       /* ── Render loop ───────────────────────────────────────────────── */
       var rafId = null;
@@ -109,7 +151,7 @@
         if (!document.hidden) {
           camera.update(now);
           renderer.draw(now);
-          if (store.get().minimapVisible) { minimap.draw(); }
+          if (minimapShown()) { minimap.draw(); }
         }
         rafId = requestAnimationFrame(frame);
       }
@@ -126,6 +168,7 @@
           interactions.destroy();
           toolbar.destroy();
           panel.destroy();
+          editor.destroy();
           /* Persist the viewport so the next visit resumes here. */
           store.set({ camera: { cx: camera.cx, cy: camera.cy, zoom: camera.zoom },
                       hover: null });

@@ -29,9 +29,10 @@ SFP.config.define('app', {
   data: {
     /* Simulation tick period (demo mode and unbound-datapoint fallback). */
     simulationIntervalMs: 2000,
-    /* In live mode, datapoints without a live source binding fall back to
-     * simulation and are visibly marked 'Simulated'. Set false to show them
-     * as unavailable instead. */
-    simulateUnboundInLive: true,
+    /* In live mode, datapoints without a live source binding render as
+     * unavailable (blank) on EVERY dashboard, so nothing synthetic can be
+     * mistaken for plant data. Set true to fall back to simulation values
+     * marked with quality 'Simulated' instead. */
+    simulateUnboundInLive: false,
   },
 });

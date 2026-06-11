@@ -40,8 +40,17 @@
     this.drag = null;                   // { x, y, moved }
     this.pinch = null;                  // { dist, mid }
 
+    /* Set by the factory-twin widget. When edit mode is active, element
+     * gestures are delegated to the editor; pan/zoom keep working. */
+    this.editor = null;
+    this.editorDragging = false;
+
     this._wire();
   }
+
+  Interactions.prototype._edActive = function () {
+    return !!(this.editor && this.editor.active);
+  };
 
   Interactions.prototype.destroy = function () {
     this.cleanups.forEach(function (fn) { fn(); });
@@ -71,7 +80,14 @@
         self.pinch = { dist: Math.hypot(b.x - a.x, b.y - a.y) };
         self.drag = null;
       } else if (e.button === 0) {
-        self.drag = { x: e.clientX, y: e.clientY, moved: false };
+        /* Editor first: when it claims the press (element move/resize,
+         * polygon vertex, stamp placement) we neither pan nor click. */
+        if (self._edActive() &&
+            self.editor.onPointerDown(self.camera.screenToWorld(self.pointers[e.pointerId]), e)) {
+          self.editorDragging = true;
+        } else {
+          self.drag = { x: e.clientX, y: e.clientY, moved: false };
+        }
       }
       self.canvas.setPointerCapture(e.pointerId);
     });
@@ -93,6 +109,11 @@
         return;
       }
 
+      if (self.editorDragging) {
+        self.editor.onPointerMove(self.camera.screenToWorld(pt));
+        return;
+      }
+
       if (self.drag) {
         var dx = e.clientX - self.drag.x, dy = e.clientY - self.drag.y;
         if (self.drag.moved || Math.abs(dx) + Math.abs(dy) > 4) {
@@ -105,14 +126,26 @@
         return;
       }
 
+      if (self._edActive()) {
+        self.canvas.style.cursor =
+          self.editor.onHover(self.camera.screenToWorld(pt)) || '';
+        self._hideTooltip();
+        return;
+      }
+
       self._hover(pt, e);
     });
 
     function endPointer(e) {
       delete self.pointers[e.pointerId];
       if (Object.keys(self.pointers).length < 2) { self.pinch = null; }
-      if (self.drag && !self.drag.moved && e.button === 0) {
+      if (self.editorDragging) {
+        self.editorDragging = false;
+        self.editor.onPointerUp(self.camera.screenToWorld(self._canvasPoint(e)));
+      } else if (self.drag && !self.drag.moved && e.button === 0 && !self._edActive()) {
         self._click(self._canvasPoint(e));
+      } else if (self.drag && !self.drag.moved && e.button === 0 && self._edActive()) {
+        self.editor.onEmptyClick();
       }
       self.drag = null;
       self.canvas.style.cursor = '';
@@ -127,6 +160,10 @@
     }, { passive: false });
 
     this._on(this.canvas, 'dblclick', function (e) {
+      if (self._edActive()) {
+        self.editor.onDblClick(self.camera.screenToWorld(self._canvasPoint(e)));
+        return;
+      }
       var hit = self.renderer.hitTest(self.camera.screenToWorld(self._canvasPoint(e)));
       if (hit && hit.kind === 'element') {
         self.camera.fitRect(self.model.elements[hit.id].rect, true);
@@ -135,6 +172,10 @@
 
     this._on(this.canvas, 'contextmenu', function (e) {
       e.preventDefault();
+      if (self._edActive()) {
+        self.editor.onContextMenu(self.camera.screenToWorld(self._canvasPoint(e)), e);
+        return;
+      }
       self._contextMenu(self._canvasPoint(e), e);
     });
 

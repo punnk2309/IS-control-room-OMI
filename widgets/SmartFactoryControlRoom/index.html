@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles/base.css">
   <link rel="stylesheet" href="styles/widgets.css">
   <link rel="stylesheet" href="styles/twin.css">
+  <link rel="stylesheet" href="styles/editor.css">
 </head>
 <body>
   <!-- The entire UI is rendered by the platform from configuration. -->
@@ -44,6 +45,7 @@
   <script src="src/ui/dashboard-renderer.js"></script>
   <script src="src/ui/navigation.js"></script>
   <script src="src/ui/app-shell.js"></script>
+  <script src="src/ui/dashboard-editor.js"></script>
 
   <!-- ═══ Digital twin engine (Factory Map page — see docs/factory-map.md) ═ -->
   <script src="src/twin/twin-store.js"></script>
@@ -57,6 +59,7 @@
   <script src="src/twin/twin-interactions.js"></script>
   <script src="src/twin/twin-toolbar.js"></script>
   <script src="src/twin/twin-panels.js"></script>
+  <script src="src/twin/twin-editor.js"></script>
 
   <!-- ═══ Widget library (add new widget types here) ═════════════════════ -->
   <script src="src/widgets/kpi-card.js"></script>
@@ -88,6 +91,10 @@
   <script src="config/dashboards/maintenance.dashboard.js"></script>
   <script src="config/dashboards/analytics.dashboard.js"></script>
   <script src="config/app.config.js"></script>
+
+  <!-- ═══ Config overrides (visual editor persistence) — must come after
+       every config file so stored overrides win, and before bootstrap ═══ -->
+  <script src="src/core/config-overrides.js"></script>
 
   <!-- ═══ Bootstrap (must be last) ═══════════════════════════════════════ -->
   <script src="src/app.js"></script>

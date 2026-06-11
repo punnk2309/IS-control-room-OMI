@@ -34,6 +34,15 @@
  * ========================================================================== */
 SFP.config.define('twin.connections', {
 
+  /* ── External nodes — off-site endpoints drawn as dashed ring nodes.
+   *    Flows that enter or leave the factory should start/end on one of
+   *    these instead of stopping mid-air. Reference as 'external:<id>'.
+   *    x/y are world coordinates (the world is sized to include them). ── */
+  externals: [
+    { id: 'city-grid', label: 'City Grid', x: 2120, y: 300 },
+    { id: 'dispatch',  label: 'Dispatch',  x: 820,  y: 1270 },
+  ],
+
   /* ── Datapoints used only by the twin (flows + twin-only equipment).
    *    Merged into the data hub alongside config/tags.config.js. Each entry
    *    follows the standard datapoint shape: `source` = real live binding,
@@ -112,6 +121,17 @@ SFP.config.define('twin.connections', {
   },
 
   connections: [
+
+    /* ═══ Boundary flows (external ring nodes ↔ the factory) ═══════════ */
+    { id: 'el-grid-tx', label: 'Grid import', utility: 'electrical',
+      from: { ref: 'external:city-grid' },
+      to:   { ref: 'machine:TX-1', anchor: { side: 'right', t: 0.3 } },
+      binding: 'energy.grid', unit: 'kW', flowRange: [0, 100] },
+
+    { id: 'pr-ship-out', label: 'Outbound dispatch', utility: 'product',
+      from: { ref: 'zone:shipping', anchor: { side: 'bottom', t: 0.5 } },
+      to:   { ref: 'external:dispatch' },
+      binding: 'twin.flow.prod.ws', unit: 'pal/h', flowRange: [0, 40] },
 
     /* ═══ Electrical distribution (machine → zone feeders) ═════════════ */
     { id: 'el-pv-tx', label: 'PV → TX-1', utility: 'electrical',

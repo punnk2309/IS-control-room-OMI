@@ -78,6 +78,12 @@
     SFP.ui.nav.init(properties.defaultPage || appCfg.defaultPage);
 
     SFP.bus.emit('data:modeChanged', { mode: SFP.runtime.mode });
+
+    /* Development aid: ?edit=1 opens the visual editor immediately. */
+    if (urlParams.get('edit') === '1') {
+      SFP.runtime.editMode = true;
+      SFP.bus.emit('edit:modeChanged', { on: true });
+    }
   }
 
   function onPropertyChanged(name, value) {

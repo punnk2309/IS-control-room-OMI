@@ -34,6 +34,54 @@
 
   function center(r) { return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
 
+  function rectContains(outer, inner) {
+    return inner.x >= outer.x && inner.y >= outer.y &&
+           inner.x + inner.w <= outer.x + outer.w &&
+           inner.y + inner.h <= outer.y + outer.h;
+  }
+
+  /* Axis-aligned direction sign of a segment: {-1,0,1} per axis. */
+  function segDir(p, q) {
+    return { x: Math.sign(Math.round((q.x - p.x) * 100)),
+             y: Math.sign(Math.round((q.y - p.y) * 100)) };
+  }
+
+  /** Remove zero-length segments and merge collinear runs (corners only). */
+  function cleanPath(pts) {
+    var out = [pts[0]];
+    for (var i = 1; i < pts.length; i++) {
+      var prev = out[out.length - 1];
+      if (Math.abs(pts[i].x - prev.x) < 0.01 && Math.abs(pts[i].y - prev.y) < 0.01) { continue; }
+      if (out.length >= 2) {
+        var d1 = segDir(out[out.length - 2], prev);
+        var d2 = segDir(prev, pts[i]);
+        if (d1.x === d2.x && d1.y === d2.y) { out.pop(); }   // collinear continuation
+      }
+      out.push(pts[i]);
+    }
+    return out;
+  }
+
+  /** True when two consecutive segments reverse direction (180° turn). */
+  function hasFoldback(pts) {
+    for (var i = 2; i < pts.length; i++) {
+      var d1 = segDir(pts[i - 2], pts[i - 1]);
+      var d2 = segDir(pts[i - 1], pts[i]);
+      if (d1.x * d2.x + d1.y * d2.y < 0) { return true; }
+    }
+    return false;
+  }
+
+  function pathLength(pts) {
+    var total = 0;
+    for (var i = 1; i < pts.length; i++) {
+      total += Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y);
+    }
+    return total;
+  }
+
+  function bendCount(pts) { return Math.max(0, pts.length - 2); }
+
   function anchorPoint(rect, side, t) {
     var n = SIDES[side];
     return {
@@ -77,7 +125,7 @@
 
     lodVisible: function (camera, el) {
       var lod = SFP.config.get('twin').lod;
-      if (el.kind === 'zone') { return true; }
+      if (el.kind === 'zone' || el.kind === 'external') { return true; }
       var threshold = el.kind === 'subzone' ? lod.subzone : lod.machine;
       return camera.lodAlpha(threshold) > 0.05;
     },
@@ -156,10 +204,18 @@
         link.fromAnchorCfg = (!link.aggregated && link.fromEl.id === c.fromId) ? c.fromAnchor : null;
         link.toAnchorCfg = (!link.aggregated && link.toEl.id === c.toId) ? c.toAnchor : null;
         link.route = (!link.aggregated) ? c.route : null;
+        /* Parent-child links (one endpoint contains the other) get a direct
+         * edge-to-edge route — face anchoring would loop them outside. */
+        link.internal = rectContains(link.fromEl.rect, link.toEl.rect) ||
+                        rectContains(link.toEl.rect, link.fromEl.rect);
       });
 
-      this._assignAnchors(links, cfg);
-      links.forEach(function (link) { link.points = self._routeElbow(link, cfg); });
+      this._assignAnchors(links.filter(function (l) { return !l.internal; }), cfg);
+      links.forEach(function (link) {
+        link.points = link.internal
+          ? self._routeInternal(link)
+          : self._routeElbow(link, cfg);
+      });
       return links;
     },
 
@@ -201,8 +257,48 @@
       });
     },
 
-    /* ── Orthogonal elbow routing ──────────────────────────────────────── */
+    /* ── Direct edge-to-edge route for parent-child (containment) links ──
+     * e.g. an AHU on a zone's Floor 2 feeding a subzone on Floor 1: the
+     * collapsed link joins the zone to a subzone INSIDE it. We connect the
+     * child's edge straight to the nearest parent edge. */
+    _routeInternal: function (link) {
+      var fromIsOuter = rectContains(link.fromEl.rect, link.toEl.rect);
+      var outer = fromIsOuter ? link.fromEl.rect : link.toEl.rect;
+      var inner = fromIsOuter ? link.toEl.rect : link.fromEl.rect;
+      var c = center(inner);
 
+      /* Nearest outer side from the inner box, then a straight connector. */
+      var gaps = [
+        { side: 'left', gap: inner.x - outer.x },
+        { side: 'right', gap: (outer.x + outer.w) - (inner.x + inner.w) },
+        { side: 'top', gap: inner.y - outer.y },
+        { side: 'bottom', gap: (outer.y + outer.h) - (inner.y + inner.h) },
+      ].sort(function (g1, g2) { return g1.gap - g2.gap; });
+      var side = gaps[0].side;
+
+      var pInner, pOuter;
+      if (side === 'left') {
+        pInner = { x: inner.x, y: c.y }; pOuter = { x: outer.x, y: c.y };
+      } else if (side === 'right') {
+        pInner = { x: inner.x + inner.w, y: c.y }; pOuter = { x: outer.x + outer.w, y: c.y };
+      } else if (side === 'top') {
+        pInner = { x: c.x, y: inner.y }; pOuter = { x: c.x, y: outer.y };
+      } else {
+        pInner = { x: c.x, y: inner.y + inner.h }; pOuter = { x: c.x, y: outer.y + outer.h };
+      }
+      /* Preserve flow direction: points run from -> to. */
+      link.fromPt = fromIsOuter ? pOuter : pInner;
+      link.toPt = fromIsOuter ? pInner : pOuter;
+      return [link.fromPt, link.toPt];
+    },
+
+    /* ── Orthogonal elbow routing ──────────────────────────────────────────
+     * Candidate-based: build L / Z / U route options, REJECT any candidate
+     * containing a 180° fold-back (two consecutive segments reversing
+     * direction — those render as broken loops, and rounded corners on them
+     * produce tangent points at near-infinity), then pick the shortest valid
+     * one (few bends preferred). A perimeter detour around both endpoint
+     * boxes is always available as a fallback. */
     _routeElbow: function (link, cfg) {
       var a = link.fromPt, b = link.toPt;
       var stub = cfg.stubWorld;
@@ -210,46 +306,66 @@
 
       var p1 = { x: a.x + a.nx * stub, y: a.y + a.ny * stub };
       var p2 = { x: b.x + b.nx * stub, y: b.y + b.ny * stub };
-      var pts = [{ x: a.x, y: a.y }, p1];
+      var head = [{ x: a.x, y: a.y }, p1];
+      var tail = [p2, { x: b.x, y: b.y }];
 
-      /* Optional config waypoints take over the middle of the route. */
-      if (link.route && link.route.waypoints) {
+      /* Explicit waypoints (config hints or editor-dragged elbows) thread
+       * the middle of the route; the cleanup pass below removes any
+       * degenerate corners they may introduce. */
+      if (link.route && link.route.waypoints && link.route.waypoints.length) {
+        var pts = head.slice();
         link.route.waypoints.forEach(function (wp) {
           var prev = pts[pts.length - 1];
           pts.push({ x: wp[0], y: prev.y });
           pts.push({ x: wp[0], y: wp[1] });
         });
-        var last = pts[pts.length - 1];
-        pts.push({ x: p2.x, y: last.y });
-      } else if (a.nx !== 0 && b.nx !== 0) {
-        /* horizontal out, horizontal in -> Z shape via mid-x */
-        var midX = (p1.x + p2.x) / 2 + stagger;
-        pts.push({ x: midX, y: p1.y });
-        pts.push({ x: midX, y: p2.y });
-      } else if (a.ny !== 0 && b.ny !== 0) {
-        /* vertical out, vertical in -> Z shape via mid-y */
-        var midY = (p1.y + p2.y) / 2 + stagger;
-        pts.push({ x: p1.x, y: midY });
-        pts.push({ x: p2.x, y: midY });
-      } else if (a.nx !== 0) {
-        /* horizontal out, vertical in -> single corner */
-        pts.push({ x: p2.x, y: p1.y });
-      } else {
-        pts.push({ x: p1.x, y: p2.y });
+        pts.push({ x: p2.x, y: pts[pts.length - 1].y });
+        return cleanPath(pts.concat(tail));
       }
 
-      pts.push(p2);
-      pts.push({ x: b.x, y: b.y });
+      var rA = link.fromEl.rect, rB = link.toEl.rect;
+      var clear = 24;
+      var middles = [
+        /* L corners (one bend) */
+        [{ x: p2.x, y: p1.y }],
+        [{ x: p1.x, y: p2.y }],
+        /* Z shapes (two bends, staggered to separate parallel runs) */
+        (function () {
+          var midX = (p1.x + p2.x) / 2 + stagger;
+          return [{ x: midX, y: p1.y }, { x: midX, y: p2.y }];
+        }()),
+        (function () {
+          var midY = (p1.y + p2.y) / 2 + stagger;
+          return [{ x: p1.x, y: midY }, { x: p2.x, y: midY }];
+        }()),
+        /* U detours around the endpoint boxes (always at least one valid) */
+        (function () {
+          var yD = Math.min(rA.y, rB.y) - clear;
+          return [{ x: p1.x, y: yD }, { x: p2.x, y: yD }];
+        }()),
+        (function () {
+          var yD = Math.max(rA.y + rA.h, rB.y + rB.h) + clear;
+          return [{ x: p1.x, y: yD }, { x: p2.x, y: yD }];
+        }()),
+        (function () {
+          var xD = Math.min(rA.x, rB.x) - clear;
+          return [{ x: xD, y: p1.y }, { x: xD, y: p2.y }];
+        }()),
+        (function () {
+          var xD = Math.max(rA.x + rA.w, rB.x + rB.w) + clear;
+          return [{ x: xD, y: p1.y }, { x: xD, y: p2.y }];
+        }()),
+      ];
 
-      /* Drop zero-length segments so corner rounding stays clean. */
-      var out = [pts[0]];
-      for (var i = 1; i < pts.length; i++) {
-        var prev = out[out.length - 1];
-        if (Math.abs(pts[i].x - prev.x) > 0.01 || Math.abs(pts[i].y - prev.y) > 0.01) {
-          out.push(pts[i]);
-        }
-      }
-      return out;
+      var best = null, bestScore = Infinity;
+      middles.forEach(function (middle) {
+        var candidate = cleanPath(head.concat(middle, tail));
+        if (hasFoldback(candidate)) { return; }
+        var score = pathLength(candidate) + bendCount(candidate) * 30;
+        if (score < bestScore) { best = candidate; bestScore = score; }
+      });
+      /* Defensive fallback (cleanPath of a U detour is always drawable). */
+      return best || cleanPath(head.concat(middles[5], tail));
     },
 
     /* ── Geometry helpers for hit-testing (used by interactions) ───────── */

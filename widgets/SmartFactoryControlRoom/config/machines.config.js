@@ -5,8 +5,8 @@
  * datapoint per machine per metric (machine.<id>.<metric>) using the metric
  * templates below; {id} in the OMI address is replaced with the machine id.
  *
- * `zone` must match a zone id in config/factory-layout.config.js — that link
- * powers zone drill-downs on the factory map and zone filters in the grid.
+ * `zone` must match a zone id in config/twin/twin.layout.config.js — that
+ * link powers twin drill-downs on the factory map and zone filters in the grid.
  * ========================================================================== */
 SFP.config.define('machines', {
 

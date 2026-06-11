@@ -45,17 +45,48 @@
         return (a.key === hoverKey ? 1 : 0) - (b.key === hoverKey ? 1 : 0);
       });
 
+      /* Whole overlay fades out below connections.minZoom, and each link
+       * additionally fades with the LOD tier of its endpoints — a
+       * machine-to-machine line appears/disappears with the machines,
+       * exactly like the boxes do. Zone-level links carry the overview. */
+      var overlayAlpha = Math.min(1, Math.max(0,
+        (r.camera.zoom - cfg.minZoom) / r.cfg.lod.fadeBand + 1));
+      if (overlayAlpha <= 0.02) { return; }
+
+      function tierThreshold(el) {
+        if (el.kind === 'machine') { return r.cfg.lod.machine; }
+        if (el.kind === 'subzone') { return r.cfg.lod.subzone; }
+        return 0;                          // zones + external nodes: always
+      }
+
+      /* Dash sizing: screen-constant while zoomed out, world-locked once
+       * zoomed past dashZoomCap. Without the cap, a factory-length line at
+       * high zoom is re-dashed into thousands of segments every frame —
+       * that is a hard frame-rate killer. */
+      var zd = Math.min(z, 1.5);
+      var view = r.camera.visibleWorldRect();
+      var cullPad = 80;          // world units; keeps lines entering the view
+
       links.forEach(function (link) {
         var filteredOut = !r.store.utilityOn(link.utility);
         if (filteredOut && filterMode === 'hide') { return; }
+
+        /* Viewport culling: skip links whose bounding box is off-screen. */
+        var bb = self._bbox(link);
+        if (bb.x0 > view.x + view.w + cullPad || bb.x1 < view.x - cullPad ||
+            bb.y0 > view.y + view.h + cullPad || bb.y1 < view.y - cullPad) { return; }
+
+        var lodAlpha = overlayAlpha * r.camera.lodAlpha(
+          Math.max(tierThreshold(link.fromEl), tierThreshold(link.toEl)));
+        if (lodAlpha <= 0.02) { return; }
 
         var style = self._styleOf(link, r, cfg);
         var isHover = hoverKey === link.key;
         var isSelected = state.selection && state.selection.kind === 'connection' &&
           link.connections.some(function (c) { return c.id === state.selection.id; });
 
-        var alpha = style.alpha;
-        if (filteredOut) { alpha = r.cfg.filters.dimAlpha; }
+        var alpha = style.alpha * lodAlpha;
+        if (filteredOut) { alpha = r.cfg.filters.dimAlpha * lodAlpha; }
         if (isHover || isSelected) { alpha = 1; }
 
         var width = style.widthPx + ((isHover || isSelected) ? 1.5 : 0);
@@ -68,8 +99,8 @@
         ctx.lineJoin = 'round';
 
         if (style.dash) {
-          ctx.setLineDash([style.dash[0] / z, style.dash[1] / z]);
-          ctx.lineDashOffset = style.dashOffset(now) / z;
+          ctx.setLineDash([style.dash[0] / zd, style.dash[1] / zd]);
+          ctx.lineDashOffset = style.dashOffset(now) / zd;
         }
         self._strokePolyline(ctx, link.points, cfg.cornerRadius);
         ctx.setLineDash([]);
@@ -95,6 +126,18 @@
         }
         ctx.restore();
       });
+    },
+
+    /** Cached world-space bounding box of a link's route (for culling). */
+    _bbox: function (link) {
+      if (link._bbox) { return link._bbox; }
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      link.points.forEach(function (p) {
+        if (p.x < x0) { x0 = p.x; } if (p.x > x1) { x1 = p.x; }
+        if (p.y < y0) { y0 = p.y; } if (p.y > y1) { y1 = p.y; }
+      });
+      link._bbox = { x0: x0, y0: y0, x1: x1, y1: y1 };
+      return link._bbox;
     },
 
     /* ── Per-link style resolution ─────────────────────────────────────── */
@@ -171,15 +214,27 @@
 
     /* ── Drawing primitives ────────────────────────────────────────────── */
 
-    /** Polyline with rounded corners (radius in world units). */
+    /** Polyline with rounded corners (radius in world units).
+     *  Corners where the path folds back on itself (or continues straight)
+     *  use lineTo: arcTo with near-collinear tangents computes tangent
+     *  points at near-infinity — an "infinite line" and a frame-rate
+     *  killer. The router avoids fold-backs, but editor-dragged waypoints
+     *  can still produce them, so the guard lives here too. */
     _strokePolyline: function (ctx, pts, radius) {
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       for (var i = 1; i < pts.length - 1; i++) {
         var p = pts[i], next = pts[i + 1], prev = pts[i - 1];
+        var v1x = p.x - prev.x, v1y = p.y - prev.y;
+        var v2x = next.x - p.x, v2y = next.y - p.y;
+        var cross = v1x * v2y - v1y * v2x;
+        if (Math.abs(cross) < 0.01) {           // collinear or 180° fold-back
+          ctx.lineTo(p.x, p.y);
+          continue;
+        }
         var r1 = Math.min(radius,
-          Math.hypot(p.x - prev.x, p.y - prev.y) / 2,
-          Math.hypot(next.x - p.x, next.y - p.y) / 2);
+          Math.hypot(v1x, v1y) / 2,
+          Math.hypot(v2x, v2y) / 2);
         ctx.arcTo(p.x, p.y, next.x, next.y, Math.max(0.1, r1));
       }
       ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);

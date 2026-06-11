@@ -23,7 +23,8 @@ During development: `index.html?theme=highcontrast`.
 | `accent`, `accent-strong` | brand, active tab, primary buttons |
 | `good`, `warn`, `alarm`, `info` | semantic status (badges, alarms, trends) |
 | `state-*` | machine states (referenced by `states.config.js`) |
-| `band-*` | factory-map energy bands |
+| `band-*` | zone energy bands used by the factory twin and charts |
+| `twin-*`, `util-*` | factory twin canvas, labels and utility layers |
 | `chart-*` | chart series palette (`chart-1…4`, `chart-solar/battery/grid`) |
 
 Rules: stylesheets and widgets must reference tokens (via `var(--c-…)` /

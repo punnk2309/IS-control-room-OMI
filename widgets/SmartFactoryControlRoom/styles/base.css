@@ -86,14 +86,40 @@ button { font-family: inherit; cursor: pointer; }
   50% { opacity: 0.45; }
 }
 
+/* Top-right shell controls: data-mode toggle + theme toggle. Both are
+ * buttons, sized to match the status badge so the row aligns cleanly. */
+.shell-controls { display: flex; align-items: center; gap: 8px; }
+
 .mode-badge {
-  padding: 5px 10px;
-  border-radius: 5px;
+  display: inline-flex; align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.2px;
   border: 1px solid transparent;
   white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.mode-badge:hover { filter: brightness(1.25); }
+
+.shell-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg-card);
+  color: var(--c-text-2);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.shell-icon-btn:hover { color: var(--c-text-1); border-color: var(--c-border-strong); }
+.shell-icon-btn.active {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
 }
 .mode-badge.live {
   color: var(--c-good);
@@ -116,10 +142,22 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ── Tab navigation ─────────────────────────────────────────────────────── */
 
-.tab-nav { display: flex; gap: 6px; margin-top: 12px; padding-bottom: 10px; flex-wrap: wrap; }
+/* Horizontal scroll instead of wrapping when more dashboards exist than fit:
+ * the header keeps one tidy row at any width / page count. */
+.tab-nav {
+  display: flex; gap: 6px; margin-top: 12px; padding-bottom: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-strong) transparent;
+}
+.tab-nav::-webkit-scrollbar { height: 5px; }
+.tab-nav::-webkit-scrollbar-thumb { background: var(--c-border-strong); border-radius: 3px; }
+.tab-nav::-webkit-scrollbar-track { background: transparent; }
 
 .tab-btn {
   display: inline-flex; align-items: center; gap: 6px;
+  flex: none; white-space: nowrap;
   padding: 7px 14px;
   border: 1px solid var(--c-border);
   border-radius: 7px;

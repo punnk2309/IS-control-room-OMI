@@ -118,8 +118,15 @@
     this._drawZones(ctx, view);
     this._drawSubzones(ctx, view);
     this._drawMachines(ctx, view);
-    SFP.twin.connRenderer.draw(ctx, this, now);
+    if (this.store.get().connectionsVisible) {
+      SFP.twin.connRenderer.draw(ctx, this, now);
+      this._drawExternalNodes(ctx, view);
+    }
     this._drawSelection(ctx);
+
+    /* Editor overlay hook (resize handles, polygon preview, stamp ghost) —
+     * still inside the world transform. */
+    if (this.overlayDraw) { this.overlayDraw(ctx, now); }
   };
 
   function intersects(r, view) {
@@ -167,13 +174,17 @@
         }
       }
 
+      /* Polygon zones trace their outline; rect zones use rounded rects. */
+      var shapePath = zone.poly
+        ? function () { self._tracePoly(ctx, zone.poly); }
+        : function () { self._roundRect(ctx, r, 6); };
       ctx.fillStyle = self.colors['twin-zone-fill'];
-      self._roundRect(ctx, r, 6);
+      shapePath();
       ctx.fill();
-      if (tint) { ctx.fillStyle = tint; self._roundRect(ctx, r, 6); ctx.fill(); }
+      if (tint) { ctx.fillStyle = tint; shapePath(); ctx.fill(); }
       ctx.strokeStyle = statusColor ? self.alpha(statusColor, 0.7) : self.colors['twin-zone-border'];
       ctx.lineWidth = 1.5 / z;
-      self._roundRect(ctx, r, 6);
+      shapePath();
       ctx.stroke();
 
       /* Label (always) + aggregate value (only while zoomed out). */
@@ -328,6 +339,46 @@
     });
   };
 
+  /** Off-site endpoints (grid, dispatch, …) drawn as ring nodes so flows
+   *  entering/leaving the factory terminate visibly. */
+  TwinRenderer.prototype._drawExternalNodes = function (ctx, view) {
+    var self = this, z = this.camera.zoom;
+    (this.model.externalNodes || []).forEach(function (el) {
+      if (!intersects(el.rect, view)) { return; }
+      var r = el.rect;
+      var cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      var radius = Math.min(r.w, r.h) / 2;
+
+      /* Soft halo behind the ring. */
+      ctx.fillStyle = self.alpha('accent', 0.12);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 7 / z, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = self.colors['twin-zone-fill'];
+      ctx.strokeStyle = self.colors.accent;
+      ctx.lineWidth = 2 / z;
+      ctx.setLineDash([6 / z, 4 / z]);       // dashed ring = system boundary
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = self.colors.accent;
+      ctx.font = '700 ' + (10 / z) + 'px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(el.label, cx, r.y - 6 / z);
+      ctx.textBaseline = 'middle';
+      ctx.font = '600 ' + (9 / z) + 'px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText('⇄', cx, cy);
+      ctx.textAlign = 'left';
+
+      self.hitElements.push({ el: el, alpha: 1 });
+    });
+  };
+
   /* ── Floor selector chip (canvas hit target) ───────────────────────────── */
 
   TwinRenderer.prototype._drawFloorChip = function (ctx, el, r) {
@@ -369,9 +420,28 @@
       ctx.strokeStyle = self.colors[token];
       ctx.lineWidth = 2.5 / z;
       ctx.setLineDash([]);
-      var pad = 4 / z;
-      self._roundRect(ctx, { x: el.rect.x - pad, y: el.rect.y - pad,
-        w: el.rect.w + pad * 2, h: el.rect.h + pad * 2 }, 6);
+      var pad = 3 / z;
+      var r = el.rect;
+
+      /* Trace the same geometry the element was drawn with, just padded —
+       * a generic rectangle around a circle/pill machine looks misaligned. */
+      if (el.poly) {
+        self._tracePoly(ctx, el.poly);
+        ctx.stroke();
+        return;
+      }
+      if (el.kind === 'machine' && el.shape === 'circle') {
+        var rad = Math.min(r.w, r.h) / 2 + pad;
+        ctx.beginPath();
+        ctx.arc(r.x + r.w / 2, r.y + r.h / 2, rad, 0, Math.PI * 2);
+        ctx.stroke();
+        return;
+      }
+      var radius = el.kind === 'zone' ? 6
+        : el.kind === 'subzone' ? 4
+        : el.shape === 'round' ? (r.h + pad * 2) / 2 : 3;
+      self._roundRect(ctx, { x: r.x - pad, y: r.y - pad,
+        w: r.w + pad * 2, h: r.h + pad * 2 }, radius + pad);
       ctx.stroke();
     }
 
@@ -382,6 +452,13 @@
     if (state.selection && state.selection.kind === 'element') {
       outline(state.selection.id, 'twin-select');
     }
+  };
+
+  TwinRenderer.prototype._tracePoly = function (ctx, pts) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (var i = 1; i < pts.length; i++) { ctx.lineTo(pts[i].x, pts[i].y); }
+    ctx.closePath();
   };
 
   TwinRenderer.prototype._roundRect = function (ctx, r, radius) {
@@ -409,16 +486,18 @@
       if (inRect(worldPt, item.rect)) { return { kind: 'floorChip', id: item.ownerId }; }
     }
 
-    var machineHit = this._hitKind(worldPt, 'machine');
+    var machineHit = this._hitKind(worldPt, 'machine') || this._hitKind(worldPt, 'external');
     if (machineHit) { return machineHit; }
 
-    var tol = this.cfg.connections.hitTolerancePx / this.camera.zoom;
-    var best = null, bestDist = tol;
-    this.links.forEach(function (link) {
-      var d = SFP.twin.router.distToPolyline(worldPt, link.points);
-      if (d <= bestDist) { best = link; bestDist = d; }
-    });
-    if (best) { return { kind: 'link', link: best, id: best.connections[0].id }; }
+    if (this.store.get().connectionsVisible) {
+      var tol = this.cfg.connections.hitTolerancePx / this.camera.zoom;
+      var best = null, bestDist = tol;
+      this.links.forEach(function (link) {
+        var d = SFP.twin.router.distToPolyline(worldPt, link.points);
+        if (d <= bestDist) { best = link; bestDist = d; }
+      });
+      if (best) { return { kind: 'link', link: best, id: best.connections[0].id }; }
+    }
 
     return this._hitKind(worldPt, 'subzone') || this._hitKind(worldPt, 'zone');
   };
@@ -426,7 +505,7 @@
   TwinRenderer.prototype._hitKind = function (worldPt, kind) {
     for (var i = this.hitElements.length - 1; i >= 0; i--) {
       var item = this.hitElements[i];
-      if (item.el.kind === kind && inRect(worldPt, item.el.rect)) {
+      if (item.el.kind === kind && hitsElement(worldPt, item.el)) {
         return { kind: 'element', id: item.el.id };
       }
     }
@@ -435,6 +514,29 @@
 
   function inRect(p, r) {
     return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  }
+
+  /** Hit test against the element's drawn geometry (circles aren't rects). */
+  function hitsElement(p, el) {
+    if (el.shape === 'circle' && (el.kind === 'machine' || el.kind === 'external')) {
+      var r = el.rect;
+      var rad = Math.min(r.w, r.h) / 2;
+      var dx = p.x - (r.x + r.w / 2), dy = p.y - (r.y + r.h / 2);
+      return dx * dx + dy * dy <= rad * rad;
+    }
+    if (el.poly) { return pointInPoly(p, el.poly); }
+    return inRect(p, el.rect);
+  }
+
+  /** Ray-casting point-in-polygon. */
+  function pointInPoly(p, pts) {
+    var inside = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+      if ((yi > p.y) !== (yj > p.y) &&
+          p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi) { inside = !inside; }
+    }
+    return inside;
   }
 
   SFP.twin.TwinRenderer = TwinRenderer;

@@ -79,7 +79,8 @@ The architecture is subscription-driven; what's not on screen costs nothing:
   (months), query a Historian REST endpoint on demand instead of widening
   buffers.
 - **Multi-site**: one CWP per site via Tag Prefix, or per-site dashboards in
-  one package (`dashboard.site-a-overview`, …) with separate factory layouts.
+  one package (`dashboard.site-a-overview`, ...) with separate `config/twin/*`
+  layout and connection config.
 
 ## Troubleshooting
 

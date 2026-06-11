@@ -17,6 +17,6 @@
 SFP.config.define('dashboard.factory-map', {
   grid: { columns: 12, gap: 12 },
   widgets: [
-    { type: 'factory-twin', layout: { span: 12, minH: 640 }, options: {} },
+    { type: 'factory-twin', layout: { span: 12, minH: 480 }, options: {} },
   ],
 });

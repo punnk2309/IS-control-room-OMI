@@ -38,7 +38,10 @@
  * ========================================================================== */
 SFP.config.define('twin.layout', {
 
-  world: { width: 2000, height: 1300 },
+  /* Slightly wider/taller than the zone footprint so off-site external
+   * nodes (city grid, dispatch — see twin.connections.config.js) sit
+   * inside the zoom-to-fit bounds. */
+  world: { width: 2240, height: 1340 },
 
   zones: [
 

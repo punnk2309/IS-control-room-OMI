@@ -240,7 +240,12 @@
     },
 
     _onStateSample: function (machineId, sample) {
-      var normalized = SFP.state.engine.normalize('machine', sample.value);
+      /* No data (live mode, unbound/disconnected) -> state unknown, not
+       * "idle": unknown machines drop out of the state counts so nothing
+       * synthetic-looking is shown. */
+      var noData = sample.value === null || sample.value === undefined ||
+        sample.quality === 'Bad' || sample.quality === 'Disconnected';
+      var normalized = noData ? null : SFP.state.engine.normalize('machine', sample.value);
       var prev = this._states[machineId];
       if (normalized === prev) { return; }
       this._states[machineId] = normalized;

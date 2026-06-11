@@ -9,7 +9,7 @@ the OMI host iframe, and requires no toolchain on engineering or OT machines.
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  CONFIG (data only — /config)                                   │
-│  app · tags · machines · factory layout · states · alarms ·     │
+│  app · tags · machines · twin layout/flows · states · alarms ·  │
 │  themes · dashboards                                            │
 └──────────────┬──────────────────────────────────────────────────┘
                │ SFP.config.define(id, object)
@@ -29,10 +29,12 @@ the OMI host iframe, and requires no toolchain on engineering or OT machines.
 │  ui/      theme engine (tokens → CSS vars) · navigation (hash)  │
 │           dashboard renderer (12-col grid) · app shell          │
 │                                                                 │
+│  twin/    model · camera · data · router · renderer · minimap · │
+│           interactions · toolbar · detail panel                 │
+│                                                                 │
 │  widgets/ kpi-card · time-series · donut-chart · bar-chart ·    │
 │           stat-list · progress-list · alarm-list · data-table · │
-│           machine-grid · factory-map · zone-details ·           │
-│           energy-flow                                           │
+│           machine-grid · factory-twin · energy-flow             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -73,12 +75,26 @@ and fails loudly on syntax errors at load time. A later `define` with the same
 id replaces the earlier one, so site-specific override files can simply be
 appended after the defaults in `index.html`.
 
+### Factory digital twin
+
+The Factory Map page is a single `factory-twin` widget backed by the
+`src/twin/` subsystem. Site geometry lives in `config/twin/twin.layout.config.js`;
+flow overlays and twin-only datapoints live in
+`config/twin/twin.connections.config.js`; camera, LOD, filter and utility-layer
+behavior lives in `config/twin/twin.config.js`.
+
+The twin renders a pannable/zoomable canvas with zones, subzones, machines,
+utility connections, a minimap, search, filters and a detail panel. Zone
+selection still emits `map:zoneSelected` so other widgets can react, and
+detail-panel actions navigate to related dashboards such as
+`#/machines?zone=welding`.
+
 ### Event bus
 
 Modules and widgets communicate through `SFP.bus` (`src/core/event-bus.js`).
 Well-known events are listed in that file's header. This is what lets the
-factory map select a zone and have a separate zone-details widget react
-without either knowing about the other.
+factory twin select a zone and other widgets react without either knowing
+about the other.
 
 ### Widget contract
 

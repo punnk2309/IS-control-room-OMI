@@ -106,7 +106,7 @@ SFP.config.define('datapoints', {
                scale: 100, clamp: [0, 100] },
   },
 
-  /* ── Zone energy (bound by factory-layout.config.js zones) ─────────────── */
+  /* ── Zone energy (bound by config/twin/twin.layout.config.js zones) ────── */
 
   'zone.assembly-a.energy': {
     label: 'Assembly Line A Energy', unit: 'kWh', decimals: 0,

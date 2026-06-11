@@ -50,6 +50,7 @@ SFP.config.define('twin', {
   },
 
   connections: {
+    minZoom: 0.55,            // below this zoom the whole overlay fades out
     widthMinPx: 1.6,          // line width at flowRange minimum (screen px)
     widthMaxPx: 9,            // line width at flowRange maximum
     /* Width gets a gentle zoom boost so lines are never paper-thin when

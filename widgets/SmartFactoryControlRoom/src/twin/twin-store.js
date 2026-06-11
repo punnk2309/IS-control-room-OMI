@@ -31,6 +31,7 @@
     panelOpen: false,       // detail side panel visible
     minimapVisible: true,
     legendVisible: true,
+    connectionsVisible: true,
     filterPanelOpen: false,
     searchQuery: '',
   };

@@ -10,8 +10,9 @@
 .twin-root {
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: 620px;
+  height: 100%;          /* overridden with an exact px height by the widget
+                            so the map hugs the bottom of the viewport */
+  min-height: 420px;
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--c-border);
@@ -247,7 +248,7 @@
 
 .twin-minimap {
   position: absolute;
-  bottom: 10px; right: 10px;
+  top: 56px; left: 10px;       /* under the toolbar's zoom controls */
   border-radius: 8px;
   border: 1px solid var(--c-border);
   cursor: crosshair;

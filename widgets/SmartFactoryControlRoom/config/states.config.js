@@ -1,7 +1,7 @@
 /* ============================================================================
  * State logic — config/states.config.js
  * ----------------------------------------------------------------------------
- * Defines every state group used by widgets, alarms and the factory map.
+ * Defines every state group used by widgets, alarms and the factory twin.
  * Changing a threshold, color or label here changes it everywhere.
  *
  *  - `states`   the states that exist (color = theme token)
@@ -25,7 +25,7 @@ SFP.config.define('states', {
     valueMap: { 0: 'idle', 1: 'running', 2: 'maintenance', 3: 'error' },
   },
 
-  /* Energy bands for factory-map zones and the energy-by-zone chart.
+  /* Energy bands for factory twin zones and the energy-by-zone chart.
    * Values are kWh consumption per zone. */
   'zone-energy': {
     default: 'low',

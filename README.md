@@ -6,7 +6,7 @@ packaged and deployed as a CWP custom widget.
 The platform ships with a complete first application — *Factory Operations
 Management* (Overview, Energy, Machines, Factory Map, Maintenance, Analytics) —
 but the dashboards are **data, not code**: pages, widgets, tag mappings,
-machines, factory layout, state logic, alarm rules and themes all live in
+machines, factory twin layout, state logic, alarm rules and themes all live in
 human-readable config files. Future dashboards and sites are built by editing
 config, not the framework.
 
@@ -19,7 +19,7 @@ widgets/SmartFactoryControlRoom/    The platform + the shipped application
 │   ├── app.config.js               App title, navigation pages, data behaviour
 │   ├── tags.config.js              Datapoint definitions + source bindings (the tag map)
 │   ├── machines.config.js          Machine fleet + per-machine metric templates
-│   ├── factory-layout.config.js    Factory map zones (geometry + bindings)
+│   ├── twin/                       Factory map geometry, flows and twin behavior
 │   ├── states.config.js            State groups: machine states, energy bands, risk bands
 │   ├── alarm-rules.config.js       Declarative alarm rules
 │   ├── theme.dark.config.js        Theme tokens (dark)
@@ -80,7 +80,7 @@ prefix). See [docs/deployment.md](docs/deployment.md).
 | Add or change a dashboard page | `config/dashboards/`, `config/app.config.js` — [docs/creating-dashboards.md](docs/creating-dashboards.md) |
 | Map widgets to different OMI tags | `config/tags.config.js` — [docs/data-sources.md](docs/data-sources.md) |
 | Add a machine | one line in `config/machines.config.js` |
-| Move/resize/add factory map zones | `config/factory-layout.config.js` — [docs/factory-map.md](docs/factory-map.md) |
+| Move/resize/add factory map zones | `config/twin/twin.layout.config.js` — [docs/factory-map.md](docs/factory-map.md) |
 | Change alarm thresholds | `config/alarm-rules.config.js` — [docs/state-and-alarms.md](docs/state-and-alarms.md) |
 | Change state colors / energy bands | `config/states.config.js` + theme files |
 | Add a data source (MES, SAP, SQL, Historian) | [docs/data-sources.md](docs/data-sources.md) |

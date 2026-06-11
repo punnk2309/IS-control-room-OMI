@@ -46,6 +46,7 @@
           changed.indexOf('activeFloors') >= 0) { self.render(); }
     });
     this.onBus('data:modeChanged', function () { self.render(); });
+    this.onBus('edit:modeChanged', function () { self.render(); });
     this.timer = setInterval(function () {
       if (self.store.get().panelOpen || SFP.runtime.mode === 'live') { self.render(); }
     }, 1000);
@@ -131,7 +132,8 @@
   DetailPanel.prototype._actions = function (zoneId) {
     var self = this, dom = this.dom;
     return dom.el('div', { class: 'twin-actions' }, [
-      dom.el('button', { class: 'btn-action primary',
+      /* External nodes have no zone — skip the machines shortcut. */
+      !zoneId ? null : dom.el('button', { class: 'btn-action primary',
         onclick: function () { self.nav.navigate('machines', { zone: zoneId }); } },
         [SFP.icons.el('cog', 13), 'View Machines']),
       dom.el('button', { class: 'btn-action',
@@ -149,6 +151,13 @@
     var dom = this.dom, self = this;
     var state = this.store.get();
     dom.clear(this.el);
+
+    /* Edit mode owns selection (properties live in the editor panel) —
+     * the viewing detail panel stays out of the way entirely. */
+    if (SFP.runtime.editMode) {
+      this.el.classList.remove('open');
+      return;
+    }
 
     var header = dom.el('div', { class: 'twin-detail-header' }, [
       dom.el('div', { class: 'twin-detail-title', text: 'Details' }),

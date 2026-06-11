@@ -38,7 +38,23 @@
         dom.el('span', { class: 'status-dot' }),
         dom.el('span', { class: 'status-text', text: 'All Systems Operational' }),
       ]);
-      this.els.modeBadge = dom.el('div', { class: 'mode-badge' });
+      this.els.modeBadge = dom.el('button', { class: 'mode-badge', onclick: function () {
+        var next = SFP.runtime.mode === 'live' ? 'simulation' : 'live';
+        SFP.runtime.mode = next;
+        SFP.data.hub.setMode(next);
+      } });
+      this.els.themeBtn = dom.el('button', { class: 'shell-icon-btn', onclick: function () {
+        SFP.ui.theme.toggle();
+      } });
+      /* Edit mode (visual config editor): on the Factory Map page this
+       * toggles the twin's layout editor; on every other page it opens the
+       * dashboard editor overlay for that page. */
+      this.els.editBtn = dom.el('button', {
+        class: 'shell-icon-btn',
+        title: 'Edit page configuration',
+        html: SFP.icons.svg('edit', 14),
+        onclick: function () { self._onEditClick(); },
+      });
       this.els.clockTime = dom.el('div', { class: 'clock-time' });
       this.els.clockDate = dom.el('div', { class: 'clock-date' });
       this.els.tabs = dom.el('nav', { class: 'tab-nav' });
@@ -63,8 +79,12 @@
             ]),
           ]),
           dom.el('div', { class: 'header-right' }, [
-            this.els.modeBadge,
             this.els.statusBadge,
+            dom.el('div', { class: 'shell-controls' }, [
+              this.els.modeBadge,
+              this.els.themeBtn,
+              this.els.editBtn,
+            ]),
             dom.el('div', { class: 'clock-block' }, [this.els.clockDate, this.els.clockTime]),
           ]),
         ]),
@@ -88,6 +108,7 @@
       SFP.bus.on('data:modeChanged', function (e) { self._updateModeBadge(e.mode); });
 
       SFP.bus.on('theme:changed', function () {
+        self._updateThemeBtn();
         /* Charts capture colors at creation; rebuild the page on theme switch. */
         var current = SFP.ui.nav.current();
         if (current.page) { self._renderPage(current.page, current.params); }
@@ -110,6 +131,7 @@
       setInterval(tick, 1000);
 
       this._updateModeBadge(SFP.runtime.mode);
+      this._updateThemeBtn();
     },
 
     _renderPage: function (pageId, params) {
@@ -129,6 +151,7 @@
 
       if (this.pageHandle) { this.pageHandle.destroy(); }
       this.pageHandle = SFP.ui.dashboards.render(this.els.main, page.dashboard, params);
+      this.els.main.className = 'main-content page-' + pageId;
     },
 
     _updateStatus: function (summary) {
@@ -147,14 +170,33 @@
       }
     },
 
+    _onEditClick: function () {
+      var current = SFP.ui.nav.current();
+      var page = this.appCfg.pages.filter(function (p) { return p.id === current.page; })[0];
+      if (!page) { return; }
+      if (page.dashboard === 'factory-map') {
+        SFP.runtime.editMode = !SFP.runtime.editMode;
+        SFP.bus.emit('edit:modeChanged', { on: SFP.runtime.editMode });
+        this.els.editBtn.classList.toggle('active', SFP.runtime.editMode);
+      } else if (SFP.ui.dashEditor) {
+        SFP.ui.dashEditor.open(page.dashboard);
+      }
+    },
+
     _updateModeBadge: function (mode) {
       var badge = this.els.modeBadge;
       badge.classList.toggle('live', mode === 'live');
       badge.classList.toggle('sim', mode !== 'live');
       badge.textContent = mode === 'live' ? 'LIVE' : 'SIMULATION';
       badge.title = mode === 'live'
-        ? 'Receiving live data from the OMI host'
-        : 'Showing simulated demonstration data';
+        ? 'Receiving live data from the OMI host - click to switch to simulation'
+        : 'Showing simulated demonstration data - click to switch to live';
+    },
+
+    _updateThemeBtn: function () {
+      var dark = SFP.ui.theme.currentId() !== 'light';
+      this.els.themeBtn.innerHTML = SFP.icons.svg(dark ? 'sun' : 'moon', 14);
+      this.els.themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
     },
   };
 

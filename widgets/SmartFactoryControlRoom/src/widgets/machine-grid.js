@@ -140,6 +140,14 @@
         ]);
 
         pageSubs.push(ctx.hub.subscribe(ctx.machines.dp(machine.id, 'state'), function (sample) {
+          if (sample.value === null || sample.value === undefined) {
+            /* Live mode without a wired source: blank, never synthetic. */
+            dom.clear(stateWrap).appendChild(
+              dom.el('span', { class: 'machine-state-badge nodata', text: 'no data' }));
+            el.removeAttribute('data-state');
+            el.style.borderColor = '';
+            return;
+          }
           var stateId = ctx.states.normalize('machine', sample.value);
           dom.clear(stateWrap).appendChild(stateBadge(stateId));
           el.setAttribute('data-state', stateId);
@@ -174,6 +182,12 @@
           dom.el('div', { class: 'machine-tile-zone', text: machine.zone }),
         ]);
         pageSubs.push(ctx.hub.subscribe(ctx.machines.dp(machine.id, 'state'), function (sample) {
+          if (sample.value === null || sample.value === undefined) {
+            dom.clear(stateWrap).appendChild(
+              dom.el('span', { class: 'machine-state-badge nodata', text: 'no data' }));
+            el.style.borderColor = '';
+            return;
+          }
           var stateId = ctx.states.normalize('machine', sample.value);
           dom.clear(stateWrap).appendChild(stateBadge(stateId));
           el.style.borderColor = theme.alpha(ctx.states.stateDef('machine', stateId).color, 0.45);

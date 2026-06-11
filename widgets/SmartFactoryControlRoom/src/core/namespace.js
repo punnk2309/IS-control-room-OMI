@@ -29,6 +29,7 @@
     /* Runtime context, filled in by src/app.js at bootstrap */
     runtime: {
       mode: 'simulation',        // 'simulation' | 'live'
+      editMode: false,           // visual config editor active (header toggle)
       omiHosted: false,          // true when running inside an OMI host frame
       properties: {},            // properties received from omi:init
     },

@@ -8,10 +8,9 @@
  *   search box with results dropdown (zones, subzones, machines, connections)
  *   filter panel toggle  — per-utility visibility + dim/hide mode
  *   legend + minimap toggles
- *   SIMULATION / LIVE badge — single-click data-source mode switch
+ *   connection overlay toggle
  *   wiring coverage chip  — live mode only: how many bindings have real
  *                           sources ("the implementation checklist counter")
- *   theme toggle (sun/moon) — instant light/dark switch, persisted
  *
  * All chrome is plain DOM styled by styles/twin.css through theme CSS
  * variables — nothing here hardcodes a color.
@@ -65,18 +64,11 @@
       SFP.icons.el('search', 13), this.els.searchInput, this.els.searchResults,
     ]);
 
-    /* Mode badge + coverage chip */
-    this.els.modeBadge = dom.el('button', { class: 'twin-mode-badge', onclick: function () {
-      var next = SFP.runtime.mode === 'live' ? 'simulation' : 'live';
-      SFP.runtime.mode = next;
-      SFP.data.hub.setMode(next);          // emits data:modeChanged
-    } });
     this.els.coverage = dom.el('span', { class: 'twin-coverage', style: { display: 'none' } });
 
-    /* Theme toggle */
-    this.els.themeBtn = dom.el('button', { class: 'twin-btn', onclick: function () {
-      SFP.ui.theme.toggle();               // shell rebuilds the page
-    } });
+    this.els.connectionsBtn = iconBtn('route', 'Toggle connections', function () {
+      self.store.set({ connectionsVisible: !self.store.get().connectionsVisible });
+    });
 
     this.els.toolbar = dom.el('div', { class: 'twin-toolbar' }, [
       iconBtn('plus', 'Zoom in', function () {
@@ -100,10 +92,9 @@
       iconBtn('map', 'Toggle minimap', function () {
         self.store.set({ minimapVisible: !self.store.get().minimapVisible });
       }),
+      this.els.connectionsBtn,
       dom.el('span', { class: 'twin-sep' }),
-      this.els.modeBadge,
       this.els.coverage,
-      this.els.themeBtn,
     ]);
 
     this.els.filterPanel = dom.el('div', { class: 'twin-filter-panel' });
@@ -114,7 +105,7 @@
     this.root.appendChild(this.els.legend);
 
     this._renderModeBadge();
-    this._renderThemeBtn();
+    this._renderConnectionsBtn();
     this._renderFilterPanel();
     this._renderLegend();
   };
@@ -131,6 +122,7 @@
         self._renderLegend();
       }
       if (changed.indexOf('legendVisible') >= 0) { self._renderLegend(); }
+      if (changed.indexOf('connectionsVisible') >= 0) { self._renderConnectionsBtn(); }
     });
   };
 
@@ -140,13 +132,6 @@
 
   Toolbar.prototype._renderModeBadge = function () {
     var live = SFP.runtime.mode === 'live';
-    var badge = this.els.modeBadge;
-    badge.classList.toggle('live', live);
-    badge.innerHTML = '<span class="twin-mode-dot"></span>' + (live ? 'LIVE' : 'SIMULATION');
-    badge.title = live
-      ? 'Live data sources. Anything blank still needs a real source wired — click to switch back to simulation.'
-      : 'Simulated demonstration data — click to preview Live mode (unwired bindings go blank).';
-
     var cov = this.els.coverage;
     if (live) {
       var c = this.data.coverage();
@@ -159,10 +144,10 @@
     }
   };
 
-  Toolbar.prototype._renderThemeBtn = function () {
-    var dark = SFP.ui.theme.currentId() !== 'light';
-    this.els.themeBtn.innerHTML = SFP.icons.svg(dark ? 'sun' : 'moon', 14);
-    this.els.themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  Toolbar.prototype._renderConnectionsBtn = function () {
+    var on = this.store.get().connectionsVisible;
+    this.els.connectionsBtn.classList.toggle('active', on);
+    this.els.connectionsBtn.title = on ? 'Hide connections' : 'Show connections';
   };
 
   /* ── Search ────────────────────────────────────────────────────────────── */
