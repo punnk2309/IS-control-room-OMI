@@ -1,0 +1,117 @@
+{
+  "name": "SmartFactoryEnergyDashboard",
+  "version": "1.0.0",
+  "description": "Smart Factory Energy Dashboard — Overview, Energy, Machines, Factory Map, Maintenance, Analytics",
+  "author": "IS Control Room",
+  "entryPoint": "index.html",
+  "defaultWidth": 1920,
+  "defaultHeight": 1080,
+  "minOmiVersion": "2022.1",
+  "properties": [
+    {
+      "name": "widgetTitle",
+      "displayName": "Widget Title",
+      "type": "String",
+      "default": "Smart Factory Energy Dashboard",
+      "description": "Title shown in the dashboard header",
+      "category": "Display"
+    },
+    {
+      "name": "productionRateTag",
+      "displayName": "Production Rate Tag",
+      "type": "String",
+      "default": "Factory.Production.Rate",
+      "description": "Tag providing production rate in units/hr",
+      "category": "Data",
+      "required": true
+    },
+    {
+      "name": "efficiencyTag",
+      "displayName": "Efficiency Tag",
+      "type": "String",
+      "default": "Factory.Production.Efficiency",
+      "description": "Tag providing overall efficiency in %",
+      "category": "Data"
+    },
+    {
+      "name": "downtimeTag",
+      "displayName": "Downtime Tag",
+      "type": "String",
+      "default": "Factory.Production.Downtime",
+      "description": "Tag providing downtime in hours",
+      "category": "Data"
+    },
+    {
+      "name": "energyUsageTag",
+      "displayName": "Energy Usage Tag",
+      "type": "String",
+      "default": "Factory.Energy.TotalUsage",
+      "description": "Tag providing total energy usage in kWh",
+      "category": "Data"
+    },
+    {
+      "name": "solarProductionTag",
+      "displayName": "Solar Production Tag",
+      "type": "String",
+      "default": "Factory.Energy.SolarProduction",
+      "description": "Tag providing solar production in kW",
+      "category": "Data"
+    },
+    {
+      "name": "batteryStorageTag",
+      "displayName": "Battery Storage Tag",
+      "type": "String",
+      "default": "Factory.Energy.BatteryLevel",
+      "description": "Tag providing battery storage level in %",
+      "category": "Data"
+    },
+    {
+      "name": "gridUsageTag",
+      "displayName": "Grid Usage Tag",
+      "type": "String",
+      "default": "Factory.Energy.GridUsage",
+      "description": "Tag providing grid energy usage in kW",
+      "category": "Data"
+    },
+    {
+      "name": "totalConsumptionTag",
+      "displayName": "Total Consumption Tag",
+      "type": "String",
+      "default": "Factory.Energy.TotalConsumption",
+      "description": "Tag providing total energy consumption in kW",
+      "category": "Data"
+    },
+    {
+      "name": "machineRunningTag",
+      "displayName": "Machines Running Tag",
+      "type": "String",
+      "default": "Factory.Machines.Running",
+      "description": "Tag providing count of running machines",
+      "category": "Data"
+    },
+    {
+      "name": "machineIdleTag",
+      "displayName": "Machines Idle Tag",
+      "type": "String",
+      "default": "Factory.Machines.Idle",
+      "description": "Tag providing count of idle machines",
+      "category": "Data"
+    },
+    {
+      "name": "machineMaintTag",
+      "displayName": "Machines in Maintenance Tag",
+      "type": "String",
+      "default": "Factory.Machines.Maintenance",
+      "description": "Tag providing count of machines in maintenance",
+      "category": "Data"
+    },
+    {
+      "name": "machineErrorTag",
+      "displayName": "Machines in Error Tag",
+      "type": "String",
+      "default": "Factory.Machines.Error",
+      "description": "Tag providing count of machines in error state",
+      "category": "Data"
+    }
+  ]
+}

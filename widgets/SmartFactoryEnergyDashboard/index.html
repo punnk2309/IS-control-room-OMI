@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Factory Energy Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="widget">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="header-top">
+      <div class="header-brand">
+        <div class="header-logo">
+          <!-- Factory icon (inline SVG) -->
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18V9l4-2.5v2l4-3v3l4-2.5V18H4zm2-2h12V12l-4 2.5V12l-4 3v-3L6 16z"/></svg>
+        </div>
+        <div>
+          <div class="header-title" id="widget-title">Smart Factory Energy Dashboard</div>
+          <div class="header-subtitle">Industrial IoT Control Center</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-badge">
+          <div class="status-dot" id="system-dot"></div>
+          <span id="system-status">All Systems Operational</span>
+        </div>
+        <div class="clock-block">
+          <div class="clock-date" id="clock-date"></div>
+          <div class="clock-time" id="clock-time"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-screen="overview">
+        <!-- LayoutDashboard icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Overview
+      </button>
+      <button class="tab-btn" data-screen="energy">
+        <!-- Zap icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Energy
+      </button>
+      <button class="tab-btn" data-screen="machines">
+        <!-- Cog icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Machines
+      </button>
+      <button class="tab-btn" data-screen="map">
+        <!-- Factory/Map icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Factory Map
+      </button>
+      <button class="tab-btn" data-screen="maintenance">
+        <!-- AlertTriangle icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Maintenance
+      </button>
+      <button class="tab-btn" data-screen="analytics">
+        <!-- TrendingUp icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Analytics
+      </button>
+    </nav>
+  </header>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main-content">
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 1: OVERVIEW                          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen active" id="screen-overview">
+
+      <!-- KPI Cards row -->
+      <div class="grid-4" style="margin-bottom:12px">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="kpi-trend trend-good">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span id="kpi-production-change">+12.5%</span>
+            </div>
+          </div>
+          <div class="kpi-label">Production Rate</div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="kpi-production">2,847</span>
+            <span class="kpi-unit">units/hr</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+            <div class="kpi-trend trend-good">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span id="kpi-efficiency-change">+3.2%</span>
+            </div>
+          </div>
+          <div class="kpi-label">Efficiency</div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="kpi-efficiency">94.2</span>
+            <span class="kpi-unit">%</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon red">
+              <!-- Clock icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="kpi-trend trend-good">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+              <span id="kpi-downtime-change">-15.3%</span>
+            </div>
+          </div>
+          <div class="kpi-label">Downtime</div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="kpi-downtime">1.8</span>
+            <span class="kpi-unit">hrs</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon yellow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="kpi-trend trend-good">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+              <span id="kpi-energy-change">-5.7%</span>
+            </div>
+          </div>
+          <div class="kpi-label">Energy Usage</div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="kpi-energy">847.2</span>
+            <span class="kpi-unit">kWh</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Production chart + Machine donut -->
+      <div class="grid-8-4" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Production Over Time</div>
+              <div class="card-subtitle">Last 24 hours</div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="tab-btn active" style="padding:3px 8px;font-size:10px;border-radius:3px">24H</button>
+              <button class="tab-btn" style="padding:3px 8px;font-size:10px;border-radius:3px">7D</button>
+              <button class="tab-btn" style="padding:3px 8px;font-size:10px;border-radius:3px">30D</button>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:220px">
+            <canvas id="chart-production"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Machine Status</div>
+              <div class="card-subtitle" id="machine-total">55 Total Machines</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:160px">
+            <canvas id="chart-machine-donut"></canvas>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+            <div class="legend-item"><div class="legend-swatch" style="background:#64ffda"></div><span id="legend-running">Running: 42</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#ffcb6b"></div><span id="legend-idle">Idle: 8</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#82aaff"></div><span id="legend-maint">Maint: 3</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#ff5370"></div><span id="legend-error">Error: 2</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Alerts -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Alerts</div></div>
+        <div id="alerts-list">
+          <div class="alert-item">
+            <div class="alert-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <div><div class="alert-msg">Machine A3 temperature above threshold</div><div class="alert-time">2 min ago</div></div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+            <div><div class="alert-msg">Production line B stopped unexpectedly</div><div class="alert-time">8 min ago</div></div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+            <div><div class="alert-msg">Scheduled maintenance for Zone C starting in 30 min</div><div class="alert-time">15 min ago</div></div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-icon success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div><div class="alert-msg">Energy optimization target achieved</div><div class="alert-time">1 hour ago</div></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /screen-overview -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 2: ENERGY MONITORING                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen" id="screen-energy">
+
+      <!-- KPIs -->
+      <div class="grid-3" style="margin-bottom:12px">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <div class="kpi-trend trend-good"><span>-5.7%</span></div>
+          </div>
+          <div class="kpi-label">Total Energy</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="kpi-energy-total">847.2</span><span class="kpi-unit">kWh</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+            <div class="kpi-trend trend-down"><span>+12.3%</span></div>
+          </div>
+          <div class="kpi-label">Peak Usage</div>
+          <div class="kpi-value-row"><span class="kpi-value">820</span><span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="kpi-trend trend-good"><span>-3.2%</span></div>
+          </div>
+          <div class="kpi-label">Cost (24h)</div>
+          <div class="kpi-value-row"><span class="kpi-value">$1,247</span><span class="kpi-unit">USD</span></div>
+        </div>
+      </div>
+
+      <!-- Real-time chart + Spikes -->
+      <div class="grid-8-4" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Real-time Energy Consumption</div>
+              <div class="card-subtitle">Current: <span id="energy-current">720</span> kW &nbsp;•&nbsp; Average: <span id="energy-avg">615</span> kW</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.15);border-radius:4px">
+              <div class="status-dot" style="width:6px;height:6px"></div>
+              <span style="font-size:11px;color:var(--good);font-weight:600">Live</span>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:240px">
+            <canvas id="chart-energy-area"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:6px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcb6b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div class="card-title">Abnormal Spikes</div>
+            </div>
+          </div>
+          <div class="spike-card high">
+            <div class="spike-row"><span class="spike-name">Assembly Line 2</span><div class="spike-dot high"></div></div>
+            <div class="spike-time">14:23</div>
+            <div class="spike-change">+45%</div>
+          </div>
+          <div class="spike-card medium" style="margin-top:6px">
+            <div class="spike-row"><span class="spike-name">Welding Station 5</span><div class="spike-dot medium"></div></div>
+            <div class="spike-time">12:15</div>
+            <div class="spike-change" style="color:var(--alarm-low)">+28%</div>
+          </div>
+          <div class="spike-card low" style="margin-top:6px">
+            <div class="spike-row"><span class="spike-name">HVAC System A</span><div class="spike-dot low"></div></div>
+            <div class="spike-time">09:30</div>
+            <div class="spike-change" style="color:var(--info)">+18%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Energy Flow -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Energie-Management</div>
+            <div class="card-subtitle">Echtzeit Energiefluss</div>
+          </div>
+          <div style="padding:3px 10px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);border-radius:3px;font-size:11px;color:var(--good)">Optimiert</div>
+        </div>
+        <div class="flow-grid" style="margin-bottom:12px">
+          <div class="flow-node solar">
+            <div class="flow-icon solar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+            <div class="flow-label">Solar</div>
+            <div class="flow-value" id="flow-solar">156</div>
+            <div class="flow-unit">kW</div>
+            <div class="flow-bar-wrap"><div class="flow-bar solar"></div></div>
+          </div>
+          <div class="flow-node battery">
+            <div class="flow-icon battery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="13" x2="23" y2="11"/></svg></div>
+            <div class="flow-label">Speicher</div>
+            <div class="flow-value" id="flow-battery">78%</div>
+            <div class="flow-unit" id="flow-battery-kwh">390 kWh</div>
+            <div class="flow-bar-wrap"><div class="flow-bar battery"></div></div>
+          </div>
+          <div class="flow-node grid">
+            <div class="flow-icon grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <div class="flow-label">Netz</div>
+            <div class="flow-value" id="flow-grid">45</div>
+            <div class="flow-unit">kW</div>
+            <div class="flow-bar-wrap"><div class="flow-bar grid"></div></div>
+          </div>
+          <div class="flow-node consume">
+            <div class="flow-icon consume"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+            <div class="flow-label">Verbrauch</div>
+            <div class="flow-value" id="flow-consume">187</div>
+            <div class="flow-unit">kW</div>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div>
+            <div class="progress-row"><span class="progress-label">Solar Anteil</span><span class="progress-val" style="color:var(--alarm-ll)">83%</span></div>
+            <div class="progress-bar-bg"><div class="progress-fill solar" style="width:83%"></div></div>
+          </div>
+          <div>
+            <div class="progress-row"><span class="progress-label">Batterie Ladung</span><span class="progress-val" style="color:var(--good)" id="battery-pct-label">78%</span></div>
+            <div class="progress-bar-bg"><div class="progress-fill battery" id="battery-bar" style="width:78%"></div></div>
+          </div>
+          <div>
+            <div class="progress-row"><span class="progress-label">Netzlast</span><span class="progress-val" style="color:var(--info)">24%</span></div>
+            <div class="progress-bar-bg"><div class="progress-fill grid" style="width:24%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zone bar chart -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Energy by Zone</div></div>
+        <div class="chart-wrap" style="height:220px">
+          <canvas id="chart-zone-bar"></canvas>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:var(--accent)"></div><span>Actual Consumption</span></div>
+          <div class="legend-item"><div class="legend-swatch" style="background:var(--border)"></div><span>Target</span></div>
+        </div>
+      </div>
+    </div><!-- /screen-energy -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 3: MACHINES                          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen" id="screen-machines">
+      <div class="grid-4" style="margin-bottom:12px">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+          </div>
+          <div class="kpi-label">Running</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="m-running" style="color:var(--good)">42</span><span class="kpi-unit">machines</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          </div>
+          <div class="kpi-label">Idle</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="m-idle" style="color:var(--alarm-low)">8</span><span class="kpi-unit">machines</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+          </div>
+          <div class="kpi-label">Maintenance</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="m-maint" style="color:var(--info)">3</span><span class="kpi-unit">machines</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <div class="kpi-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+          </div>
+          <div class="kpi-label">Error</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="m-error" style="color:var(--alarm-high)">2</span><span class="kpi-unit">machines</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Machine Status Grid</div><div class="card-subtitle">55 Total Machines</div></div>
+        <div class="machine-grid" id="machine-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div><!-- /screen-machines -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 4: FACTORY MAP                       -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen" id="screen-map">
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header"><div class="card-title">Factory Floor Map</div><div class="card-subtitle">Energy consumption by zone</div></div>
+        <div class="factory-map">
+          <div class="map-zone active" style="grid-column:1/3;grid-row:1/2"><div class="map-zone-name">Assembly Line A</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">285</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone warning"><div class="map-zone-name">Welding Bay 1</div><div class="map-zone-status">HIGH USAGE</div><div><div class="map-zone-energy">195</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone active"><div class="map-zone-name">Welding Bay 2</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">142</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone active" style="grid-column:1/2;grid-row:2/3"><div class="map-zone-name">Paint Shop</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">152</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone alarm"><div class="map-zone-name">Quality Control</div><div class="map-zone-status">⚠ ALARM</div><div><div class="map-zone-energy">98</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone active" style="grid-column:3/5;grid-row:2/3"><div class="map-zone-name">Warehouse / Logistics</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">67</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone idle" style="grid-column:1/2;grid-row:3/4"><div class="map-zone-name">Admin Block</div><div class="map-zone-status">IDLE</div><div><div class="map-zone-energy">50</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone active" style="grid-column:2/4;grid-row:3/4"><div class="map-zone-name">Maintenance Workshop</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">38</div><div class="map-zone-unit">kWh</div></div></div>
+          <div class="map-zone active"><div class="map-zone-name">Utilities</div><div class="map-zone-status">RUNNING</div><div><div class="map-zone-energy">21</div><div class="map-zone-unit">kWh</div></div></div>
+        </div>
+        <div class="legend" style="margin-top:10px">
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(100,255,218,0.3)"></div><span>Normal</span></div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,203,107,0.3)"></div><span>High Usage</span></div>
+          <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,83,112,0.3)"></div><span>Alarm</span></div>
+          <div class="legend-item"><div class="legend-swatch" style="background:var(--border-subtle)"></div><span>Idle</span></div>
+        </div>
+      </div>
+    </div><!-- /screen-map -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 5: MAINTENANCE                       -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen" id="screen-maintenance">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Maintenance Alerts & Schedule</div></div>
+        <table class="maint-table">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Zone</th>
+              <th>Type</th>
+              <th>Priority</th>
+              <th>Due</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Machine A3</td><td>Assembly</td><td>Temperature alarm</td>
+              <td><span class="badge high">High</span></td>
+              <td style="color:var(--alarm-high)">Overdue</td>
+              <td><span class="badge high">Open</span></td>
+            </tr>
+            <tr>
+              <td>Production Line B</td><td>Assembly</td><td>Unexpected stop</td>
+              <td><span class="badge high">High</span></td>
+              <td style="color:var(--alarm-high)">Now</td>
+              <td><span class="badge high">Active</span></td>
+            </tr>
+            <tr>
+              <td>Zone C HVAC</td><td>Admin</td><td>Scheduled PM</td>
+              <td><span class="badge medium">Medium</span></td>
+              <td>Today 14:00</td>
+              <td><span class="badge medium">Pending</span></td>
+            </tr>
+            <tr>
+              <td>Welding Station 5</td><td>Welding</td><td>Energy spike</td>
+              <td><span class="badge medium">Medium</span></td>
+              <td>Today 16:00</td>
+              <td><span class="badge medium">Pending</span></td>
+            </tr>
+            <tr>
+              <td>Paint Booth Filter</td><td>Paint Shop</td><td>Filter replacement</td>
+              <td><span class="badge low">Low</span></td>
+              <td>Tomorrow</td>
+              <td><span class="badge low">Scheduled</span></td>
+            </tr>
+            <tr>
+              <td>Conveyor Belt C4</td><td>Warehouse</td><td>Lubrication</td>
+              <td><span class="badge low">Low</span></td>
+              <td>Thu 08:00</td>
+              <td><span class="badge low">Scheduled</span></td>
+            </tr>
+            <tr>
+              <td>Compressor Unit 2</td><td>Utilities</td><td>Annual inspection</td>
+              <td><span class="badge low">Low</span></td>
+              <td>Next Week</td>
+              <td><span class="badge done">Planned</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div><!-- /screen-maintenance -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SCREEN 6: ANALYTICS                         -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="screen" id="screen-analytics">
+      <div class="analytics-grid" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Production Trend</div><div class="card-subtitle">7-day rolling</div></div>
+          <div class="chart-wrap" style="height:180px"><canvas id="chart-analytics-production"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Energy Trend</div><div class="card-subtitle">7-day rolling</div></div>
+          <div class="chart-wrap" style="height:180px"><canvas id="chart-analytics-energy"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Efficiency Trend</div><div class="card-subtitle">7-day rolling</div></div>
+          <div class="chart-wrap" style="height:180px"><canvas id="chart-analytics-efficiency"></canvas></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Solar vs Grid vs Battery</div><div class="card-subtitle">30-day energy mix</div></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-analytics-mix"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Downtime by Zone</div><div class="card-subtitle">This month</div></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-analytics-downtime"></canvas></div>
+        </div>
+      </div>
+    </div><!-- /screen-analytics -->
+
+  </main><!-- /main-content -->
+</div><!-- /widget -->
+
+<script src="chart.umd.min.js"></script>
+<script src="widget.js"></script>
+</body>
+</html>
