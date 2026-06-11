@@ -1,0 +1,55 @@
+{
+  "name": "SmartFactoryControlRoom",
+  "version": "2.0.0",
+  "description": "Configuration-driven smart factory control room platform — Overview, Energy, Machines, Factory Map, Maintenance, Analytics",
+  "author": "IS Control Room",
+  "entryPoint": "index.html",
+  "defaultWidth": 1920,
+  "defaultHeight": 1080,
+  "minOmiVersion": "2022.1",
+  "properties": [
+    {
+      "name": "widgetTitle",
+      "displayName": "Widget Title",
+      "type": "String",
+      "default": "Factory Operations Management",
+      "description": "Title shown in the dashboard header (overrides config/app.config.js)",
+      "category": "Display"
+    },
+    {
+      "name": "theme",
+      "displayName": "Theme",
+      "type": "Enum",
+      "values": ["Dark", "Light"],
+      "default": "Dark",
+      "description": "Visual theme (themes are defined in config/theme.*.config.js)",
+      "category": "Display"
+    },
+    {
+      "name": "defaultPage",
+      "displayName": "Default Page",
+      "type": "Enum",
+      "values": ["overview", "energy", "machines", "factory-map", "maintenance", "analytics"],
+      "default": "overview",
+      "description": "Dashboard shown when the widget loads",
+      "category": "Display"
+    },
+    {
+      "name": "dataMode",
+      "displayName": "Data Mode",
+      "type": "Enum",
+      "values": ["Auto", "Live", "Simulation"],
+      "default": "Auto",
+      "description": "Auto = live when hosted in OMI, simulation otherwise. Simulation is always clearly badged in the header.",
+      "category": "Data"
+    },
+    {
+      "name": "tagPrefix",
+      "displayName": "Tag Prefix",
+      "type": "String",
+      "default": "Factory.",
+      "description": "Prefix prepended to every OMI tag address in config/tags.config.js — deploy the same package against different plants/areas by changing this",
+      "category": "Data"
+    }
+  ]
+}
