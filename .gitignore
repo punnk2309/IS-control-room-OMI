@@ -1,0 +1,22 @@
+# Build output
+dist/
+*.cwp
+
+# Node
+node_modules/
+npm-debug.log
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# OMI logs
+*.omi-log
+
+# Secrets
+.env
+*.key
