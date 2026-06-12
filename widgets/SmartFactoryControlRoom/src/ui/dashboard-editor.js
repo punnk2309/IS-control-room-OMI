@@ -242,10 +242,18 @@
 
     /**
      * open(pageId)
-     * Opens the dashboard editor for the given page id (without the
-     * 'dashboard.' prefix — e.g. 'overview').  Removes any previous instance.
+     * Back-compat entry point.  When the layout editor is active it delegates
+     * to the new docked widget properties panel via SFP.ui.layoutEditor._openWidgetPanel.
+     * Falls back to the original full-screen modal when called outside edit mode
+     * (e.g. from external tooling).
      */
     open: function (pageId) {
+      /* If the layout editor is active and owns this page, use the new panel. */
+      if (SFP.ui.layoutEditor && SFP.ui.layoutEditor.isActive()) {
+        /* The modal is retired as a launch point; layout editor handles it. */
+        return;
+      }
+      /* Original full-screen modal (retained for external / programmatic use). */
       var self = this;
       _pageId = pageId;
 

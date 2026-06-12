@@ -38,14 +38,17 @@
 
   /* ── module-level state ─────────────────────────────────────────────────── */
 
-  var _active  = false;
-  var _pageId  = null;   /* current dashboard id (no 'dashboard.' prefix) */
-  var _cfg     = null;   /* deep-clone working copy */
-  var _columns = 12;
-  var _session = null;   /* { undo:[], redo:[], dirty:false } */
-  var _handle  = null;   /* SFP.ui.dashboards render handle */
-  var _barEl   = null;   /* top-bar DOM element */
-  var _onKey   = null;
+  var _active      = false;
+  var _pageId      = null;   /* current dashboard id (no 'dashboard.' prefix) */
+  var _cfg         = null;   /* deep-clone working copy */
+  var _baseline    = null;   /* deep-clone of config at session start (for discard) */
+  var _columns     = 12;
+  var _session     = null;   /* { undo:[], redo:[], dirty:false } */
+  var _handle      = null;   /* SFP.ui.dashboards render handle */
+  var _barEl       = null;   /* (kept for compat, no longer set) */
+  var _onKey       = null;
+  var _propPanelEl = null;   /* docked right-side widget properties panel */
+  var _propWidgetIdx = -1;   /* index of widget currently open in props panel */
 
   /* ── drag state (module-level so mousemove/mouseup are registered once) ── */
   var _drag = null;
@@ -132,6 +135,9 @@
     _columns = (_cfg.grid && _cfg.grid.columns) || 12;
 
     _overlayEditChrome(container);
+    /* Refresh the docked properties panel if open (index may be out of range
+     * if the widget was deleted — _renderPropPanel guards for this). */
+    if (_propPanelEl && _propWidgetIdx >= 0) { _renderPropPanel(); }
   }
 
   /* ── edit chrome overlay ─────────────────────────────────────────────────
@@ -152,34 +158,45 @@
       cell.setAttribute('data-le-idx', String(idx));
 
       /* per-cell toolbar */
-      var toolbar = el('div', { class: 'le-cell-toolbar' }, [
-        _makeCellBtn('settings', 'Widget settings', function () {
-          _openWidgetSettings();
-        }),
-        _makeCellBtn('copy', 'Duplicate widget', function () {
-          mutate(function () {
-            var clone = deepClone(_cfg.widgets[idx]);
-            _cfg.widgets.splice(idx + 1, 0, clone);
-          });
-        }),
-        _makeCellBtn('trash-2', 'Remove widget', function () {
-          mutate(function () {
-            _cfg.widgets.splice(idx, 1);
-          });
-        }),
-      ]);
+      (function (cellIdx) {
+        var toolbar = el('div', { class: 'le-cell-toolbar' }, [
+          _makeCellBtn('settings', 'Widget settings', function () {
+            _openWidgetSettings(cellIdx);
+          }),
+          _makeCellBtn('copy', 'Duplicate widget', function () {
+            mutate(function () {
+              var dupe = deepClone(_cfg.widgets[cellIdx]);
+              _cfg.widgets.splice(cellIdx + 1, 0, dupe);
+            });
+          }),
+          _makeCellBtn('trash-2', 'Remove widget', function () {
+            if (_propWidgetIdx === cellIdx) { _closePropPanel(); }
+            mutate(function () {
+              _cfg.widgets.splice(cellIdx, 1);
+            });
+          }),
+        ]);
 
-      /* drag handle */
-      var dragHandle = el('div', { class: 'le-drag-handle', title: 'Drag to reorder' });
-      _wireDrag(dragHandle, cell, idx);
+        cell.appendChild(toolbar);
 
-      /* resize handle */
-      var resizeHandle = el('div', { class: 'le-resize-handle', title: 'Drag to resize' });
-      _wireResize(resizeHandle, idx);
+        /* drag handle */
+        var dragHandle = el('div', { class: 'le-drag-handle', title: 'Drag to reorder' });
+        _wireDrag(dragHandle, cell, cellIdx);
+        cell.appendChild(dragHandle);
 
-      cell.appendChild(toolbar);
-      cell.appendChild(dragHandle);
-      cell.appendChild(resizeHandle);
+        /* resize handles — corner (both axes), right edge (span), bottom edge (minH) */
+        var cornerHandle = el('div', { class: 'le-resize-handle le-resize-corner', title: 'Drag to resize' });
+        _wireResize(cornerHandle, cellIdx, 'corner');
+        cell.appendChild(cornerHandle);
+
+        var rightHandle = el('div', { class: 'le-resize-handle le-resize-right', title: 'Drag to resize width' });
+        _wireResize(rightHandle, cellIdx, 'right');
+        cell.appendChild(rightHandle);
+
+        var bottomHandle = el('div', { class: 'le-resize-handle le-resize-bottom', title: 'Drag to resize height' });
+        _wireResize(bottomHandle, cellIdx, 'bottom');
+        cell.appendChild(bottomHandle);
+      }(idx));
     });
   }
 
@@ -189,16 +206,185 @@
     return btn;
   }
 
-  /* ── Open widget settings via dashEditor ────────────────────────────────── */
+  /* ── Widget properties panel (docked right side) ────────────────────────── */
 
-  function _openWidgetSettings() {
-    if (!SFP.ui.dashEditor) { return; }
-    /* Apply the current working copy so the editor sees it. */
-    SFP.config.define('dashboard.' + _pageId, _cfg);
-    SFP.ui.dashEditor.open(_pageId);
-    /* dashEditor.Apply calls SFP.config.override and then nav.navigate which
-     * will re-fire nav:changed → layout-editor re-activates and picks up the
-     * new config from the registry. */
+  /**
+   * _openWidgetPanel(widgetIdx)
+   * Opens (or refreshes) the docked right-side properties panel for the widget
+   * at index widgetIdx in _cfg.widgets.
+   */
+  function _openWidgetPanel(widgetIdx) {
+    _propWidgetIdx = widgetIdx;
+    if (!_propPanelEl) {
+      _propPanelEl = el('div', { class: 'le-prop-panel' });
+      document.getElementById('app').appendChild(_propPanelEl);
+      /* Shift main content to make room. */
+      var mainEl = document.querySelector('.main-content');
+      if (mainEl) { mainEl.classList.add('le-prop-open'); }
+    }
+    _renderPropPanel();
+  }
+
+  function _closePropPanel() {
+    if (_propPanelEl && _propPanelEl.parentNode) {
+      _propPanelEl.parentNode.removeChild(_propPanelEl);
+    }
+    _propPanelEl = null;
+    _propWidgetIdx = -1;
+    var mainEl = document.querySelector('.main-content');
+    if (mainEl) { mainEl.classList.remove('le-prop-open'); }
+  }
+
+  function _renderPropPanel() {
+    if (!_propPanelEl || _propWidgetIdx < 0 || !_cfg) { return; }
+    if (_propWidgetIdx >= _cfg.widgets.length) { _closePropPanel(); return; }
+
+    SFP.dom.clear(_propPanelEl);
+    var widgetIdx = _propWidgetIdx;
+    var widget = _cfg.widgets[widgetIdx];
+    var registeredTypes = SFP.widgets.types();
+
+    /* ── header ── */
+    _propPanelEl.appendChild(el('div', { class: 'le-prop-header' }, [
+      el('span', { class: 'le-prop-title', text: 'Widget ' + (widgetIdx + 1) }),
+      el('button', { class: 'le-cell-btn', title: 'Close panel',
+        html: SFP.icons.svg('x', 12),
+        onclick: function () { _closePropPanel(); } }),
+    ]));
+
+    function row(labelText, input) {
+      return el('label', { class: 'twin-prop-row' }, [labelText, input]);
+    }
+
+    /* ── type selector ── */
+    var typeSel = el('select', { class: 'input' });
+    registeredTypes.forEach(function (t) {
+      var opt = el('option', { value: t, text: t });
+      if (t === widget.type) { opt.selected = true; }
+      typeSel.appendChild(opt);
+    });
+    typeSel.addEventListener('change', function () {
+      mutate(function () { _cfg.widgets[widgetIdx].type = typeSel.value; });
+      _renderPropPanel();
+    });
+    _propPanelEl.appendChild(row('Type', typeSel));
+
+    /* ── span ── */
+    var spanInput = el('input', { type: 'number', min: '1', max: '12', class: 'input',
+      value: String((widget.layout && widget.layout.span) || _columns) });
+    spanInput.addEventListener('change', function () {
+      var v = parseInt(spanInput.value, 10);
+      if (v >= 1 && v <= 12) {
+        mutate(function () {
+          if (!_cfg.widgets[widgetIdx].layout) { _cfg.widgets[widgetIdx].layout = {}; }
+          _cfg.widgets[widgetIdx].layout.span = v;
+        });
+      }
+    });
+    _propPanelEl.appendChild(row('Span (cols)', spanInput));
+
+    /* ── rows ── */
+    var rowsInput = el('input', { type: 'number', min: '1', class: 'input',
+      value: String((widget.layout && widget.layout.rows) || '') });
+    rowsInput.placeholder = 'auto';
+    rowsInput.addEventListener('change', function () {
+      var v = parseInt(rowsInput.value, 10);
+      mutate(function () {
+        if (!_cfg.widgets[widgetIdx].layout) { _cfg.widgets[widgetIdx].layout = {}; }
+        _cfg.widgets[widgetIdx].layout.rows = (v > 0) ? v : null;
+      });
+    });
+    _propPanelEl.appendChild(row('Rows', rowsInput));
+
+    /* ── minH ── */
+    var minHInput = el('input', { type: 'number', min: '0', class: 'input',
+      value: String((widget.layout && widget.layout.minH) || 0) });
+    minHInput.addEventListener('change', function () {
+      var v = parseInt(minHInput.value, 10);
+      if (!isNaN(v) && v >= 0) {
+        mutate(function () {
+          if (!_cfg.widgets[widgetIdx].layout) { _cfg.widgets[widgetIdx].layout = {}; }
+          _cfg.widgets[widgetIdx].layout.minH = v || null;
+        });
+      }
+    });
+    _propPanelEl.appendChild(row('Min height (px)', minHInput));
+
+    /* ── options JSON ── */
+    var optNote = el('span', { class: 'ded-note' });
+    var optTa = el('textarea', { class: 'ded-json le-prop-ta',
+      rows: '6', spellcheck: 'false',
+      text: JSON.stringify(widget.options || {}, null, 2) });
+    optTa.addEventListener('input', function () {
+      try {
+        var parsed = JSON.parse(optTa.value);
+        optTa.classList.remove('invalid');
+        optNote.textContent = '';
+        /* Live-preview on next Apply only — don't mutate on every keystroke. */
+        optTa._parsed = parsed;
+        optTa._valid = true;
+      } catch (e) {
+        optTa.classList.add('invalid');
+        optNote.textContent = 'JSON error: ' + e.message;
+        optTa._valid = false;
+      }
+    });
+    optTa._valid = true;
+    optTa._parsed = widget.options || {};
+    _propPanelEl.appendChild(el('div', { class: 'le-prop-section-title', text: 'options' }));
+    _propPanelEl.appendChild(optTa);
+    _propPanelEl.appendChild(optNote);
+
+    /* ── bind JSON (only when present) ── */
+    var bindTa = null;
+    if (widget.bind !== undefined) {
+      var bindNote = el('span', { class: 'ded-note' });
+      bindTa = el('textarea', { class: 'ded-json le-prop-ta',
+        rows: '4', spellcheck: 'false',
+        text: JSON.stringify(widget.bind || {}, null, 2) });
+      bindTa.addEventListener('input', function () {
+        try {
+          var parsed = JSON.parse(bindTa.value);
+          bindTa.classList.remove('invalid');
+          bindNote.textContent = '';
+          bindTa._parsed = parsed;
+          bindTa._valid = true;
+        } catch (e) {
+          bindTa.classList.add('invalid');
+          bindNote.textContent = 'JSON error: ' + e.message;
+          bindTa._valid = false;
+        }
+      });
+      bindTa._valid = true;
+      bindTa._parsed = widget.bind || {};
+      _propPanelEl.appendChild(el('div', { class: 'le-prop-section-title', text: 'bind' }));
+      _propPanelEl.appendChild(bindTa);
+      _propPanelEl.appendChild(bindNote);
+    }
+
+    /* ── Apply button ── */
+    _propPanelEl.appendChild(el('button', { class: 'btn-action primary', text: 'Apply',
+      onclick: function () {
+        if (!optTa._valid) { return; }
+        if (bindTa && !bindTa._valid) { return; }
+        mutate(function () {
+          _cfg.widgets[widgetIdx].options = optTa._parsed;
+          if (bindTa) { _cfg.widgets[widgetIdx].bind = bindTa._parsed; }
+        });
+        _renderPropPanel();
+      } }));
+  }
+
+  /* ── (back-compat) thin alias that opens the new panel instead of modal ── */
+  function _openWidgetSettings(widgetIdx) {
+    if (widgetIdx !== undefined && widgetIdx >= 0) {
+      _openWidgetPanel(widgetIdx);
+    } else {
+      /* fallback: open dashEditor modal for backwards compatibility */
+      if (!SFP.ui.dashEditor) { return; }
+      SFP.config.define('dashboard.' + _pageId, _cfg);
+      SFP.ui.dashEditor.open(_pageId);
+    }
   }
 
   /* ── Drag to reorder ─────────────────────────────────────────────────────── */
@@ -221,13 +407,18 @@
 
   /* ── Resize ──────────────────────────────────────────────────────────────── */
 
-  function _wireResize(handle, widgetIdx) {
+  /**
+   * _wireResize(handle, widgetIdx, axis)
+   * axis: 'corner' = span+minH, 'right' = span only, 'bottom' = minH only
+   */
+  function _wireResize(handle, widgetIdx, axis) {
     handle.addEventListener('mousedown', function (e) {
       e.preventDefault();
       e.stopPropagation();
       var layout = _cfg.widgets[widgetIdx].layout || {};
       _resize = {
         widgetIdx: widgetIdx,
+        axis: axis || 'corner',
         startX: e.clientX,
         startY: e.clientY,
         origSpan: layout.span || _columns,
@@ -255,14 +446,18 @@
       var colWidth = (gridWidth - gap * (_columns - 1)) / _columns;
       var dx = e.clientX - r.startX;
       var dy = e.clientY - r.startY;
-      var newSpan = Math.max(1, Math.min(_columns,
-        Math.round(r.origSpan + dx / (colWidth + gap))));
-      var newMinH = Math.max(0, r.origMinH + Math.round(dy / SNAP_H) * SNAP_H);
       /* Live preview directly on the cell. */
       var cell = document.querySelector('.dash-cell[data-le-idx="' + r.widgetIdx + '"]');
       if (cell) {
-        cell.style.gridColumn = 'span ' + newSpan;
-        cell.style.minHeight = newMinH ? newMinH + 'px' : '';
+        if (r.axis === 'corner' || r.axis === 'right') {
+          var newSpan = Math.max(1, Math.min(_columns,
+            Math.round(r.origSpan + dx / (colWidth + gap))));
+          cell.style.gridColumn = 'span ' + newSpan;
+        }
+        if (r.axis === 'corner' || r.axis === 'bottom') {
+          var newMinH = Math.max(0, r.origMinH + Math.round(dy / SNAP_H) * SNAP_H);
+          cell.style.minHeight = newMinH ? newMinH + 'px' : '';
+        }
       }
     }
   });
@@ -301,14 +496,18 @@
         var colWidth = (gridWidth - gap * (_columns - 1)) / _columns;
         var dx = e.clientX - r.startX;
         var dy = e.clientY - r.startY;
-        var newSpan = Math.max(1, Math.min(_columns,
-          Math.round(r.origSpan + dx / (colWidth + gap))));
-        var newMinH = Math.max(0, r.origMinH + Math.round(dy / SNAP_H) * SNAP_H);
         var idx = r.widgetIdx;
         mutate(function () {
           if (!_cfg.widgets[idx].layout) { _cfg.widgets[idx].layout = {}; }
-          _cfg.widgets[idx].layout.span = newSpan;
-          _cfg.widgets[idx].layout.minH = newMinH || null;
+          if (r.axis === 'corner' || r.axis === 'right') {
+            var newSpan = Math.max(1, Math.min(_columns,
+              Math.round(r.origSpan + dx / (colWidth + gap))));
+            _cfg.widgets[idx].layout.span = newSpan;
+          }
+          if (r.axis === 'corner' || r.axis === 'bottom') {
+            var newMinH = Math.max(0, r.origMinH + Math.round(dy / SNAP_H) * SNAP_H);
+            _cfg.widgets[idx].layout.minH = newMinH || null;
+          }
         });
       }
       _resize = null;
@@ -343,8 +542,8 @@
               options: {},
             });
           });
-          /* Open settings for the newly added widget. */
-          _openWidgetSettings();
+          /* Open the docked panel for the newly added widget. */
+          _openWidgetPanel(_cfg.widgets.length - 1);
         },
       });
     });
@@ -373,110 +572,30 @@
     document.body.appendChild(backdrop);
   }
 
-  /* ── Top bar ─────────────────────────────────────────────────────────────── */
-
-  function _buildBar() {
-    var dirtyEl = el('span', { class: 'le-dirty-indicator', text: '' });
-    var undoBtn = el('button', { class: 'twin-banner-btn', text: 'Undo',
-      title: 'Undo (Ctrl+Z)', disabled: true,
-      onclick: function () { doUndo(); } });
-    var redoBtn = el('button', { class: 'twin-banner-btn', text: 'Redo',
-      title: 'Redo (Ctrl+Y)', disabled: true,
-      onclick: function () { doRedo(); } });
-    var addBtn = el('button', { class: 'twin-banner-btn', text: '+ Add widget',
-      onclick: function () { _showAddWidgetPicker(); } });
-    var saveBtn = el('button', { class: 'twin-banner-btn primary', text: 'Save',
-      title: 'Persist changes to localStorage', disabled: true,
-      onclick: function () { _save(); } });
-    var exportBtn = el('button', { class: 'twin-banner-btn', text: 'Export',
-      title: 'Download .dashboard.js',
-      onclick: function () {
-        SFP.config.define('dashboard.' + _pageId, _cfg);
-        SFP.config.downloadConfigJs(
-          'dashboard.' + _pageId,
-          _pageId + '.dashboard.js'
-        );
-      },
-    });
-    var exitBtn = el('button', { class: 'twin-banner-btn', text: 'Exit edit',
-      onclick: function () { _requestExit(); } });
-
-    var bar = el('div', { class: 'le-top-bar' }, [
-      el('span', { class: 'le-bar-label', text: 'Layout edit — ' + _pageId }),
-      dirtyEl,
-      undoBtn,
-      redoBtn,
-      addBtn,
-      saveBtn,
-      exportBtn,
-      exitBtn,
-    ]);
-    bar._refs = { dirty: dirtyEl, undo: undoBtn, redo: redoBtn, save: saveBtn };
-    return bar;
-  }
+  /* ── Bar refresh (delegates to editSession which owns the bar) ────────────── */
 
   function _refreshBar() {
-    if (!_barEl || !_barEl._refs) { return; }
-    var refs = _barEl._refs;
-    var dirty = _session && _session.dirty;
-    refs.dirty.textContent = dirty ? '● unsaved' : '';
-    refs.dirty.className = 'le-dirty-indicator' + (dirty ? ' dirty' : '');
-    refs.undo.disabled = !(_session && _session.undo.length > 0);
-    refs.redo.disabled = !(_session && _session.redo.length > 0);
-    refs.save.disabled = !dirty;
+    if (SFP.ui.editSession) { SFP.ui.editSession.refresh(); }
   }
 
   /* ── Save / Exit ─────────────────────────────────────────────────────────── */
 
   function _save() {
-    SFP.config.override('dashboard.' + _pageId, _cfg);
+    var ok = SFP.config.override('dashboard.' + _pageId, _cfg);
+    if (ok === false) {
+      /* dirty stays true; editSession will display the error in the bar */
+      return false;
+    }
     if (_session) {
       _session.dirty = false;
       _session.undo = [];
       _session.redo = [];
     }
+    /* Advance baseline to the just-saved state so a subsequent Discard
+     * restores to this saved snapshot, not the pre-session one. */
+    _baseline = deepClone(_cfg);
     _refreshBar();
-  }
-
-  function _requestExit() {
-    if (_session && _session.dirty) {
-      _showConfirmDialog(
-        'Exit without saving?',
-        'Unsaved changes will be lost.',
-        function () { _deactivate(false); }
-      );
-    } else {
-      _deactivate(false);
-    }
-  }
-
-  /* ── Inline confirm dialog ──────────────────────────────────────────────── */
-
-  function _showConfirmDialog(title, body, onConfirm) {
-    var backdrop = el('div', { class: 'le-confirm-backdrop' });
-    var panel = el('div', { class: 'le-confirm-panel' }, [
-      el('div', { class: 'le-confirm-title', text: title }),
-      el('div', { class: 'le-confirm-body', text: body }),
-      el('div', { class: 'le-confirm-actions' }, [
-        el('button', {
-          class: 'ded-btn primary',
-          text: 'Discard & exit',
-          onclick: function () {
-            if (backdrop.parentNode) { backdrop.parentNode.removeChild(backdrop); }
-            onConfirm();
-          },
-        }),
-        el('button', {
-          class: 'ded-btn',
-          text: 'Keep editing',
-          onclick: function () {
-            if (backdrop.parentNode) { backdrop.parentNode.removeChild(backdrop); }
-          },
-        }),
-      ]),
-    ]);
-    backdrop.appendChild(panel);
-    document.body.appendChild(backdrop);
+    return true;
   }
 
   /* ── Activation / Deactivation ──────────────────────────────────────────── */
@@ -490,11 +609,12 @@
     if (_active && _pageId === pageId) { return; }
     if (_active) { _deactivate(true); }
 
-    _pageId  = pageId;
-    _cfg     = deepClone(SFP.config.get('dashboard.' + pageId));
-    _columns = (_cfg.grid && _cfg.grid.columns) || 12;
-    _session = { undo: [], redo: [], dirty: false };
-    _active  = true;
+    _pageId   = pageId;
+    _cfg      = deepClone(SFP.config.get('dashboard.' + pageId));
+    _baseline = deepClone(_cfg);
+    _columns  = (_cfg.grid && _cfg.grid.columns) || 12;
+    _session  = { undo: [], redo: [], dirty: false };
+    _active   = true;
 
     /* Destroy the shell's pageHandle if it rendered before us so we don't
      * double-instantiate widgets. */
@@ -503,49 +623,36 @@
       SFP.ui.shell.pageHandle = null;
     }
 
-    /* Build top bar and insert it between the header and .main-content. */
-    _barEl = _buildBar();
+    /* Mark main-content so padding adjusts (editSession inserts the bar). */
     var mainEl = document.querySelector('.main-content');
-    if (mainEl && mainEl.parentNode) {
-      mainEl.parentNode.insertBefore(_barEl, mainEl);
-    } else {
-      document.getElementById('app').appendChild(_barEl);
-    }
     if (mainEl) { mainEl.classList.add('le-active'); }
 
     _rerender();
+    /* editSession.refresh() called via _refreshBar() notifies the bar. */
     _refreshBar();
-
-    _onKey = function (e) {
-      var tag = document.activeElement ? document.activeElement.tagName : '';
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
-      if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault(); doUndo();
-      } else if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault(); doRedo();
-      }
-    };
-    document.addEventListener('keydown', _onKey);
   }
 
-  function _deactivate(silentNav) {
+  /**
+   * _deactivate(discard)
+   *   discard=true  — restore baseline config so unsaved edits vanish
+   *   discard=false — keep current in-memory config (we just saved, or we are
+   *                   only suspending for a nav swap)
+   *
+   * NOTE: the bar is owned by editSession; we do NOT touch it here.
+   * NOTE: editMode flag / pencil state is managed by editSession; we do NOT
+   *       emit edit:modeChanged here.
+   */
+  function _deactivate(discard) {
     if (!_active) { return; }
     _active = false;
 
-    /* Restore the persisted (saved) config in memory if edits were discarded. */
-    if (_session && !_session.dirty) {
-      /* Nothing was saved in this session — re-apply whatever is persisted. */
-      var overrides = SFP.config.overrides();
-      if (overrides['dashboard.' + _pageId]) {
-        SFP.config.define('dashboard.' + _pageId, overrides['dashboard.' + _pageId]);
-      }
-    }
+    /* Close the widget properties panel if open. */
+    _closePropPanel();
 
-    /* Remove top bar. */
-    if (_barEl && _barEl.parentNode) {
-      _barEl.parentNode.removeChild(_barEl);
+    /* Restore pre-session baseline when discarding unsaved edits. */
+    if (discard && _baseline && _pageId) {
+      SFP.config.define('dashboard.' + _pageId, _baseline);
     }
-    _barEl = null;
 
     /* Remove edit-mode class from main. */
     var mainEl = document.querySelector('.main-content');
@@ -557,16 +664,11 @@
       _handle = null;
     }
 
-    /* Re-render clean. */
+    /* Re-render clean with whatever config is now live. */
     if (mainEl && _pageId) {
       var freshHandle = SFP.ui.dashboards.render(
         mainEl, _pageId, SFP.ui.nav.current().params);
       if (SFP.ui.shell) { SFP.ui.shell.pageHandle = freshHandle; }
-    }
-
-    if (_onKey) {
-      document.removeEventListener('keydown', _onKey);
-      _onKey = null;
     }
 
     /* Cancel any in-flight drag / resize. */
@@ -578,51 +680,17 @@
     }
     _resize = null;
 
-    /* If the user clicked "Exit edit", also turn off the global editMode flag
-     * and update the pencil button state.  silentNav=true means we were
-     * deactivated by navigation, not by the user pressing Exit — in that case
-     * we leave editMode on so it auto-activates on the next non-map page. */
-    if (!silentNav) {
-      SFP.runtime.editMode = false;
-      SFP.bus.emit('edit:modeChanged', { on: false });
-    }
-
-    _pageId  = null;
-    _cfg     = null;
-    _session = null;
+    _pageId   = null;
+    _cfg      = null;
+    _baseline = null;
+    _session  = null;
   }
 
-  /* ── Bus wiring ─────────────────────────────────────────────────────────── */
-
-  SFP.bus.on('edit:modeChanged', function (e) {
-    var current = SFP.ui.nav.current();
-    if (!current || !current.page) { return; }
-
-    var appCfg = SFP.config.get('app');
-    var page = null;
-    (appCfg.pages || []).forEach(function (p) {
-      if (p.id === current.page) { page = p; }
-    });
-    if (!page) { return; }
-
-    if (isFactoryMap(page.dashboard)) { return; }
-
-    if (e.on) {
-      _activate(current.page);
-    } else {
-      if (_active) { _deactivate(true); }
-    }
-  });
+  /* ── nav:changed bus wiring ──────────────────────────────────────────────── */
 
   SFP.bus.on('nav:changed', function (e) {
-    var appCfg = SFP.config.get('app');
-    var page = null;
-    (appCfg.pages || []).forEach(function (p) {
-      if (p.id === e.page) { page = p; }
-    });
-
     if (_active && _pageId === e.page) {
-      /* Same page navigated again (e.g. dashEditor.Apply called nav.navigate).
+      /* Same page navigated again (e.g. after dashEditor.Apply calls nav.navigate).
        * Re-sync _cfg from the live registry and re-render. */
       _cfg = deepClone(SFP.config.get('dashboard.' + _pageId));
       _session.undo = [];
@@ -630,25 +698,52 @@
       _session.dirty = false;
       _rerender();
       _refreshBar();
-      return;
     }
+  });
 
-    if (_active && _pageId !== e.page) {
-      /* Navigated away — deactivate silently (keep editMode on). */
-      _deactivate(true);
-    }
+  /* ── editSession adapter registration ─────────────────────────────────────
+   * Deferred until DOMContentLoaded so SFP.ui.editSession exists (it is
+   * defined in edit-session.js which loads after layout-editor.js).         */
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!SFP.ui.editSession) { return; }
 
-    if (!page) { return; }
-    if (!_active && SFP.runtime.editMode && !isFactoryMap(page.dashboard)) {
-      _activate(e.page);
-    }
+    SFP.ui.editSession.registerAdapter(
+      /* test */ function (pageId) {
+        var appCfg = SFP.config.get('app');
+        var page = null;
+        (appCfg.pages || []).forEach(function (p) {
+          if (p.id === pageId) { page = p; }
+        });
+        if (!page) { return false; }
+        return !isFactoryMap(page.dashboard);
+      },
+      /* factory */ function (pageId) {
+        if (!SFP.runtime.canEdit) { return null; }
+        _activate(pageId);
+        return {
+          id: 'Layout edit — ' + pageId,
+          canUndo: function () { return !!(_session && _session.undo.length > 0); },
+          canRedo: function () { return !!(_session && _session.redo.length > 0); },
+          undo:    function () { doUndo(); },
+          redo:    function () { doRedo(); },
+          dirty:   function () { return !!(_session && _session.dirty); },
+          save:    function () { return _save(); },
+          export:  function () {
+            SFP.config.define('dashboard.' + _pageId, _cfg);
+            SFP.config.downloadConfigJs('dashboard.' + _pageId, _pageId + '.dashboard.js');
+          },
+          addWidget: function () { _showAddWidgetPicker(); },
+          onExit: function (discard) { _deactivate(discard); },
+        };
+      }
+    );
   });
 
   /* ── Public API ─────────────────────────────────────────────────────────── */
 
   SFP.ui.layoutEditor = {
     isActive: function () { return _active; },
-    deactivate: function () { _deactivate(false); },
+    deactivate: function () { _deactivate(true); },
   };
 
 }(window.SFP));

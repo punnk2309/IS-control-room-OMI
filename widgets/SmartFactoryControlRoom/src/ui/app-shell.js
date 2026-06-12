@@ -421,9 +421,14 @@
       });
 
       /* Rebuild tab bar when edit mode toggles (add/remove "+" tab and
-       * per-tab edit decorations). */
-      SFP.bus.on('edit:modeChanged', function () {
+       * per-tab edit decorations).  Also keep the pencil button in sync so
+       * that exits driven by editSession (Save/Discard after dialog) correctly
+       * clear the active highlight. */
+      SFP.bus.on('edit:modeChanged', function (e) {
         self._rebuildTabs();
+        if (self.els.editBtn) {
+          self.els.editBtn.classList.toggle('active', !!SFP.runtime.editMode);
+        }
       });
 
       /* Show/hide the pencil edit button whenever the canEdit permission changes. */
@@ -475,8 +480,14 @@
 
       /* When the layout editor is active for this page it owns the render
        * cycle — let it handle the page render via its own _rerender().
-       * We still destroy the previous pageHandle to avoid leaks. */
-      if (SFP.ui.layoutEditor && SFP.ui.layoutEditor.isActive()) {
+       * We still destroy the previous pageHandle to avoid leaks.
+       * Check both the legacy layoutEditor flag and the new editSession. */
+      var editorActive = (SFP.ui.layoutEditor && SFP.ui.layoutEditor.isActive()) ||
+        (SFP.ui.editSession && SFP.ui.editSession.isActive() &&
+         SFP.ui.editSession.currentAdapter() &&
+         SFP.ui.editSession.currentAdapter().id &&
+         SFP.ui.editSession.currentAdapter().id.indexOf('Layout edit') === 0);
+      if (editorActive) {
         if (this.pageHandle) {
           try { this.pageHandle.destroy(); } catch (e) { /* ignore */ }
           this.pageHandle = null;
@@ -517,10 +528,30 @@
       var page = this.appCfg.pages.filter(function (p) { return p.id === current.page; })[0];
       if (!page) { return; }
 
-      SFP.runtime.editMode = !SFP.runtime.editMode;
-      this.els.editBtn.classList.toggle('active', SFP.runtime.editMode);
-      /* emit triggers _wire's edit:modeChanged listener which calls _rebuildTabs. */
-      SFP.bus.emit('edit:modeChanged', { on: SFP.runtime.editMode });
+      if (!SFP.runtime.editMode) {
+        /* Entering edit mode — flip flag, update button, notify. */
+        SFP.runtime.editMode = true;
+        this.els.editBtn.classList.add('active');
+        SFP.bus.emit('edit:modeChanged', { on: true });
+      } else {
+        /* Exiting edit mode.
+         * When an editSession adapter is active let editSession drive the
+         * exit (it shows the Save/Discard/Cancel dialog if dirty, and only
+         * flips editMode + fires the event after the user confirms).
+         * Only perform the direct flip when NO editSession adapter is live
+         * (e.g. a page that has no registered adapter). */
+        if (SFP.ui.editSession && SFP.ui.editSession.isActive()) {
+          /* editSession.requestExit() is internal; trigger it via the
+           * event bus with the same payload the session already listens for,
+           * but mark it NOT _fromSession so it IS processed. */
+          SFP.ui.editSession._requestExit();
+        } else {
+          /* No active editSession — do the direct flip as before. */
+          SFP.runtime.editMode = false;
+          this.els.editBtn.classList.remove('active');
+          SFP.bus.emit('edit:modeChanged', { on: false });
+        }
+      }
     },
 
     _updateModeBadge: function (mode) {

@@ -25,6 +25,34 @@
 (function (SFP) {
   'use strict';
 
+  /* Shared reference to the most-recently-created editor instance.
+   * editSession's adapter factory uses this to delegate to whichever editor
+   * is currently live (avoids stale closures from prior widget instances). */
+  var _currentEditor = null;
+
+  /* Register the factory-map adapter once at module load.
+   * DOMContentLoaded deferred so SFP.ui.editSession is available. */
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!SFP.ui.editSession) { return; }
+    SFP.ui.editSession.registerAdapter(
+      /* test   */ function (pageId) { return pageId === 'factory-map'; },
+      /* factory */ function () {
+        if (!SFP.runtime.canEdit) { return null; }
+        if (!_currentEditor) { return null; }
+        /* Guard against a stale editor whose root has been detached from the
+         * DOM (the old widget was destroyed but factory-twin hasn't rendered
+         * the new one yet — nav:changed fires editSession._swapAdapter before
+         * the shell renders the new page).  Return null here; the new widget
+         * will call editSession.adapterReady() once it activates.
+         * We check isConnected (standard in Edge/Chrome/Firefox) so we only
+         * hand out an adapter when the twin canvas is actually in the page. */
+        if (!_currentEditor.root.isConnected) { return null; }
+        _currentEditor.setActive(true);
+        return _currentEditor.getAdapter();
+      }
+    );
+  });
+
   SFP.widgets.register('factory-twin', {
     create: function (ctx) {
       var dom = ctx.dom;
@@ -79,8 +107,29 @@
         model: model, store: store, menuEl: menu, rebuild: rebuildModel,
       });
       interactions.editor = editor;
-      ctx.onBus('edit:modeChanged', function (e) { editor.setActive(!!e.on); });
-      if (SFP.runtime.editMode) { editor.setActive(true); }
+
+      /* Expose this editor to the module-level adapter registration. */
+      _currentEditor = editor;
+
+      /* Legacy bus wiring — fallback when editSession is not present, and
+       * also handles graceful deactivation on edit:modeChanged { on:false }.
+       * NOTE: _fromSession events are emitted by editSession._doExit() after
+       * the user confirmed exit; the adapter's onExit already calls
+       * setActive(false), so the legacy path must NOT double-fire for those. */
+      ctx.onBus('edit:modeChanged', function (e) {
+        if (!e.on && !e._fromSession) { editor.setActive(false); }
+      });
+
+      if (SFP.runtime.editMode) {
+        editor.setActive(true);
+        /* If editSession is active but had no adapter (the widget loaded after
+         * nav:changed and _swapAdapter found _currentEditor === null), give it
+         * the adapter now so the bar appears. */
+        if (SFP.ui.editSession && SFP.ui.editSession.isActive() &&
+            !SFP.ui.editSession.currentAdapter()) {
+          SFP.ui.editSession.adapterReady(editor.getAdapter());
+        }
+      }
 
       /* ── Sizing ────────────────────────────────────────────────────── */
       var lastHeight = 0;
@@ -169,6 +218,8 @@
           toolbar.destroy();
           panel.destroy();
           editor.destroy();
+          /* Clear the module-level editor reference on destroy. */
+          if (_currentEditor === editor) { _currentEditor = null; }
           /* Persist the viewport so the next visit resumes here. */
           store.set({ camera: { cx: camera.cx, cy: camera.cy, zoom: camera.zoom },
                       hover: null });

@@ -110,8 +110,11 @@
       });
 
       var redrawQueued = false;
+      var redrawTimer = null;
+      var destroyed = false;
       var lastDraw = 0;
       function paint() {
+        if (destroyed) { return; }
         lastDraw = Date.now();
         series.forEach(function (s, i) {
           chart.data.datasets[i].data = ctx.hub.history(s.datapoint, rangeMs)
@@ -125,7 +128,7 @@
         var wait = Math.max(0, 1000 - (Date.now() - lastDraw));
         if (wait === 0) { paint(); return; }
         redrawQueued = true;
-        setTimeout(function () { redrawQueued = false; paint(); }, wait);
+        redrawTimer = setTimeout(function () { redrawQueued = false; paint(); }, wait);
       }
 
       series.forEach(function (s) {
@@ -135,7 +138,11 @@
 
       return {
         resize: function () { chart.resize(); },
-        destroy: function () { chart.destroy(); },
+        destroy: function () {
+          destroyed = true;
+          if (redrawTimer) { clearTimeout(redrawTimer); redrawTimer = null; }
+          chart.destroy();
+        },
       };
     },
   });

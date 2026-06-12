@@ -42,7 +42,12 @@
   function writeMap(map) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-    } catch (e) { /* storage may be full or sandboxed — silently ignore */ }
+      return true;
+    } catch (e) {
+      /* storage may be full or sandboxed */
+      console.warn('[SFP.config] writeMap failed:', e);
+      return false;
+    }
   }
 
   /* ── public API — mixed onto the existing SFP.config object ──────────── */
@@ -61,12 +66,12 @@
   SFP.config.override = function (id, obj) {
     if (window.SFP && window.SFP.runtime && window.SFP.runtime.canEdit === false) {
       console.warn('[SFP.config] override("' + id + '") refused — canEdit is false.');
-      return;
+      return false;
     }
     SFP.config.define(id, obj);
     var map = readMap();
     map[id] = obj;
-    writeMap(map);
+    return writeMap(map);
   };
 
   /**

@@ -131,6 +131,12 @@
 
       var instances = [];
 
+      /* Attach the grid BEFORE creating widgets: data-hub subscriptions can
+       * fire synchronously with cached values during create(), and Chart.js
+       * responsive sizing throws on a detached canvas (parentNode null). */
+      dom.clear(container);
+      container.appendChild(grid);
+
       (cfg.widgets || []).forEach(function (widgetCfg) {
         var layout = widgetCfg.layout || {};
         var span = Math.min(layout.span || columns, columns);
@@ -173,9 +179,6 @@
         instances.push({ instance: instance, cleanups: cleanups, cell: cell });
       });
 
-      dom.clear(container);
-      container.appendChild(grid);
-
       return {
         resize: function () {
           instances.forEach(function (entry) {
@@ -185,6 +188,11 @@
           });
         },
         destroy: function () {
+          /* Detach the grid from the DOM first so that any pending
+           * ResizeObserver callbacks (e.g. from Chart.js 4.x) that fire
+           * during widget teardown see a detached canvas and do not attempt
+           * to access ownerDocument on an already-nulled reference. */
+          dom.clear(container);
           instances.forEach(function (entry) {
             if (entry.instance && entry.instance.destroy) {
               try { entry.instance.destroy(); } catch (err) { console.error(err); }
@@ -193,7 +201,6 @@
               try { unsub(); } catch (err) { console.error(err); }
             });
           });
-          dom.clear(container);
         },
       };
     },

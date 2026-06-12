@@ -84,7 +84,7 @@
     this.dragState = null;
     this.hoverWorld = null;
     this.els = {};
-    this.session = null;              // { baseline, undo:[], dirty }
+    this.session = null;              // { baseline, undo:[], redo:[], dirty }
     this._onKey = this._onKey.bind(this);
   }
 
@@ -98,21 +98,10 @@
     };
   };
 
-  /** Refresh the banner dirty indicator and save/undo button states. */
+  /** Refresh the banner hint text and notify editSession to update its bar. */
   Editor.prototype._refreshSessionUI = function () {
-    if (!this.els.saveBtn) { return; }
-    var dirty = this.session && this.session.dirty;
-    var dirtyText = dirty ? '● unsaved changes' : '✔ saved';
-    if (this.els.dirtyIndicator) {
-      this.els.dirtyIndicator.textContent = dirtyText;
-      this.els.dirtyIndicator.className = 'twin-dirty-indicator' + (dirty ? ' dirty' : '');
-    }
-    if (this.els.saveBtn) {
-      this.els.saveBtn.disabled = !dirty;
-    }
-    if (this.els.undoBtn) {
-      this.els.undoBtn.disabled = !(this.session && this.session.undo.length > 0);
-    }
+    /* Notify the unified edit bar (editSession) to re-query our adapter. */
+    if (SFP.ui.editSession) { SFP.ui.editSession.refresh(); }
   };
 
   /* ── Activation ────────────────────────────────────────────────────────── */
@@ -126,7 +115,7 @@
     }
     this.active = on;
     if (on) {
-      this.session = { baseline: this._snap(), undo: [], dirty: false };
+      this.session = { baseline: this._snap(), undo: [], redo: [], dirty: false };
       this._buildChrome();
       this.renderer.overlayDraw = this.draw.bind(this);
       document.addEventListener('keydown', this._onKey);
@@ -163,6 +152,9 @@
     } else if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !inInput) {
       e.preventDefault();
       this._undo();
+    } else if (e.key === 'y' && (e.ctrlKey || e.metaKey) && !inInput) {
+      e.preventDefault();
+      this._redo();
     }
   };
 
@@ -170,6 +162,9 @@
 
   Editor.prototype._undo = function () {
     if (!this.session || !this.session.undo.length) { return; }
+    /* Push current state onto redo before restoring. */
+    this.session.redo.push(this._snap());
+    if (this.session.redo.length > UNDO_CAP) { this.session.redo.shift(); }
     var snap = this.session.undo.pop();
     SFP.config.define('twin.layout', snap.layout);
     SFP.config.define('twin.connections', snap.connections);
@@ -180,6 +175,21 @@
     this._toast('Undid last edit (' + this.session.undo.length + ' left)');
   };
 
+  Editor.prototype._redo = function () {
+    if (!this.session || !this.session.redo.length) { return; }
+    /* Push current state onto undo before re-applying. */
+    this.session.undo.push(this._snap());
+    if (this.session.undo.length > UNDO_CAP) { this.session.undo.shift(); }
+    var snap = this.session.redo.pop();
+    SFP.config.define('twin.layout', snap.layout);
+    SFP.config.define('twin.connections', snap.connections);
+    this.session.dirty = true;
+    this.rebuild();
+    this._renderProps();
+    this._refreshSessionUI();
+    this._toast('Redid edit (' + this.session.undo.length + ' undo steps)');
+  };
+
   /* ── Config access ─────────────────────────────────────────────────────
    * Every commit: clone config -> mutate -> SFP.config.define -> rebuild.
    * findLayoutNode locates the config entry behind a model element. */
@@ -188,6 +198,7 @@
     if (this.session) {
       this.session.undo.push(this._snap());
       if (this.session.undo.length > UNDO_CAP) { this.session.undo.shift(); }
+      this.session.redo = [];   // new action clears redo stack
     }
     SFP.config.define('twin.layout', cfg);
     if (this.session) { this.session.dirty = true; }
@@ -200,6 +211,7 @@
     if (this.session) {
       this.session.undo.push(this._snap());
       if (this.session.undo.length > UNDO_CAP) { this.session.undo.shift(); }
+      this.session.redo = [];   // new action clears redo stack
     }
     SFP.config.define('twin.connections', cfg);
     if (this.session) { this.session.dirty = true; }
@@ -872,29 +884,13 @@
   Editor.prototype._buildChrome = function () {
     var dom = SFP.dom, self = this;
 
-    // Banner row: message + dirty indicator + undo + save buttons
+    // Banner row: tool hint message only — Save/Undo/Redo are in editSession bar
     var bannerMsg = dom.el('span', { class: 'twin-edit-banner-msg',
       text: 'Edit mode — drag to move, handles to resize, right-click for shape tools' });
     this.els.bannerMsg = bannerMsg;
 
-    this.els.dirtyIndicator = dom.el('span', { class: 'twin-dirty-indicator',
-      text: '✔ saved' });
-
-    this.els.undoBtn = dom.el('button', { class: 'twin-banner-btn', text: 'Undo',
-      title: 'Undo last edit (Ctrl+Z)',
-      disabled: true,
-      onclick: function () { self._undo(); } });
-
-    this.els.saveBtn = dom.el('button', { class: 'twin-banner-btn primary', text: 'Save',
-      title: 'Persist all edits (until saved, leaving edit mode discards them)',
-      disabled: true,
-      onclick: function () { self._save(); } });
-
     this.els.banner = dom.el('div', { class: 'twin-edit-banner' }, [
       bannerMsg,
-      this.els.dirtyIndicator,
-      this.els.undoBtn,
-      this.els.saveBtn,
     ]);
 
     this.els.palette = dom.el('div', { class: 'twin-palette' },
@@ -924,10 +920,15 @@
     this._refreshSessionUI();
   };
 
-  /** Persist both configs to localStorage. */
+  /** Persist both configs to localStorage. Returns true on success. */
   Editor.prototype._save = function () {
-    SFP.config.override('twin.layout', SFP.config.get('twin.layout'));
-    SFP.config.override('twin.connections', SFP.config.get('twin.connections'));
+    var ok1 = SFP.config.override('twin.layout', SFP.config.get('twin.layout'));
+    var ok2 = SFP.config.override('twin.connections', SFP.config.get('twin.connections'));
+    if (ok1 === false || ok2 === false) {
+      this._toast('Save failed — storage refused or full');
+      /* dirty stays true so the unsaved-changes indicator remains */
+      return false;
+    }
     if (this.session) {
       this.session.baseline = this._snap();
       this.session.undo = [];
@@ -935,10 +936,13 @@
     }
     this._refreshSessionUI();
     this._toast('Saved to localStorage');
+    return true;
   };
 
   Editor.prototype._removeChrome = function () {
     var self = this;
+    /* banner, palette, props are all the chrome we own now;
+     * Save/Undo/Redo live in the editSession top bar. */
     ['banner', 'palette', 'props'].forEach(function (key) {
       if (self.els[key] && self.els[key].parentElement) {
         self.els[key].parentElement.removeChild(self.els[key]);
@@ -967,10 +971,8 @@
       clearTimeout(this._toastTimer);
       this._toastTimer = setTimeout(function () {
         if (self.els.bannerMsg) {
-          var dirty = self.session && self.session.dirty;
-          self.els.bannerMsg.textContent = dirty
-            ? 'Edit mode — unsaved changes will be discarded on close'
-            : 'Edit mode — drag to move, handles to resize, right-click for shape tools';
+          self.els.bannerMsg.textContent =
+            'Edit mode — drag to move, handles to resize, right-click for shape tools';
         }
       }, 2500);
     }
@@ -1411,4 +1413,33 @@
   };
 
   SFP.twin.Editor = Editor;
+
+  /* ── editSession adapter ──────────────────────────────────────────────────
+   * factory-twin.js calls editor.getAdapter() after constructing the editor.
+   * The adapter is registered with editSession for the factory-map page.     */
+  Editor.prototype.getAdapter = function () {
+    var self = this;
+    return {
+      id: 'Factory map edit',
+      canUndo: function () { return !!(self.session && self.session.undo.length > 0); },
+      canRedo: function () { return !!(self.session && self.session.redo.length > 0); },
+      undo:    function () { self._undo(); },
+      redo:    function () { self._redo(); },
+      dirty:   function () { return !!(self.session && self.session.dirty); },
+      save:    function () { return self._save(); },
+      export:  function () {
+        SFP.config.downloadConfigJs('twin.layout', 'twin.layout.config.js');
+        SFP.config.downloadConfigJs('twin.connections', 'twin.connections.config.js');
+      },
+      /* onExit(discard): editSession calls this when exiting edit mode. */
+      onExit: function (discard) {
+        if (discard) {
+          /* Restore baseline — twin editor setActive(false) does this already
+           * when session is dirty, so just call setActive(false). */
+        }
+        self.setActive(false);
+      },
+    };
+  };
+
 }(window.SFP));

@@ -4,96 +4,105 @@ Free-layout drag-and-drop editor for non-factory-map dashboard pages, plus a "+"
 
 ## Activating Edit Mode
 
-Click the pencil icon (top-right header) on any page, or open the app with `?edit=1` in the URL. The pencil toggles `SFP.runtime.editMode` and emits `edit:modeChanged` on the event bus.
+Click the pencil icon (top-right header). The pencil is the **only** enter/exit control; there is no "Exit edit" button in the bar.
 
+- The pencil toggles `SFP.runtime.editMode` and emits `edit:modeChanged` on the event bus.
+- **Exiting with unsaved changes** shows a three-button dialog: **Save & exit** (saves then exits), **Discard & exit** (restores pre-session config), **Cancel** (stays in edit mode with pencil active).
 - On the **Factory Map** page the twin's shape editor activates (unchanged behaviour).
 - On every other dashboard page the free **layout editor** (`SFP.ui.layoutEditor`) activates.
 
+## Unified Edit Bar (`SFP.ui.editSession`)
+
+A single top bar is owned by `src/ui/edit-session.js`. It adapts its buttons to the current page via registered adapters:
+
+| Button | Available on | Action |
+|--------|-------------|--------|
+| **Undo** (Ctrl+Z) | all pages | Revert last change |
+| **Redo** (Ctrl+Y) | all pages | Re-apply undone change |
+| **+ Add widget** | dashboard pages only | Opens type picker; inserts widget and opens properties panel |
+| **Save** | all pages | Persists via `SFP.config.override()`; shows error if storage is full/refused and keeps dirty=true |
+| **Export** | all pages | Downloads ready-to-commit `.js` config file(s) |
+
+### Honest Saves
+
+`SFP.config.override()` now returns `true` on success and `false` when:
+- `canEdit` is false (refused), or
+- `localStorage.setItem` threw (storage full/sandboxed).
+
+Both `layout-editor._save()` and `twin-editor._save()` check this return value. On failure the bar shows "Save failed — storage refused or full" and `dirty` stays `true`.
+
 ## Layout Editor (Feature A)
-
-### Top Bar
-
-A bar appears between the header and the page content:
-
-| Button | Action |
-|--------|--------|
-| **Undo** (Ctrl+Z) | Revert last change; disabled until there is something to undo |
-| **Redo** (Ctrl+Y) | Re-apply undone change |
-| **+ Add widget** | Opens a type picker dialog; chosen type is inserted with default span 3 / minH 110 and the widget-settings modal opens |
-| **Save** | Persists the current layout via `SFP.config.override('dashboard.<id>', cfg)` into localStorage; survives page reload |
-| **Export** | Downloads a ready-to-commit `.dashboard.js` file via `SFP.config.downloadConfigJs` |
-| **Exit edit** | Deactivates the editor; prompts with an inline dialog if there are unsaved changes |
 
 ### Per-Cell Controls
 
 While edit mode is active every widget cell shows:
 
 - **Dashed outline** indicating edit state; accent-coloured on hover.
-- **Top-centre pill handle** (appears on hover): drag to reorder the widget in the array. A ghost element follows the cursor; on drop the widget is spliced to the position of the hovered target cell (array swap, re-render).
-- **Hover toolbar** (top-right corner of cell): three icon buttons — gear (opens the existing `SFP.ui.dashEditor` modal for the whole page), duplicate, remove.
-- **Bottom-right resize handle** (appears on hover): drag horizontally to change `layout.span` (1–12 column grid, snapped per column width); drag vertically to change `layout.minH` (snapped every 20 px).
+- **Top-centre pill handle** (appears on hover): drag to reorder.
+- **Hover toolbar** (top-right corner): gear opens the **docked widget properties panel** (see below), duplicate, remove.
+- **Corner resize handle** (SE, diagonal grip `nwse-resize`): drag to change both `layout.span` and `layout.minH`.
+- **Right-edge handle** (ew-resize): drag to change `layout.span` only.
+- **Bottom-edge handle** (ns-resize): drag to change `layout.minH` only (snaps 20 px).
+
+### Docked Widget Properties Panel
+
+The gear button opens a 280 px docked right-side panel:
+
+- **Type** dropdown (all registered widget types).
+- **Span** (1–12), **Rows**, **Min height (px)** numeric inputs.
+- **options** JSON textarea — turns red (`invalid` class) on parse error.
+- **bind** JSON textarea — shown only when the widget has a `bind` key.
+- **Apply** button — commits type/layout changes as one undo step; JSON is applied on Apply only (not live-typed).
+
+`SFP.ui.dashEditor.open(pageId)` is reduced to a back-compat stub that is a no-op when the layout editor is active.
 
 ### Undo / Redo Model
 
-- Each mutation (reorder, resize, add, duplicate, remove) pushes a deep-clone of the full dashboard config onto the undo stack before applying the change.
-- Stack depth capped at 50 entries; oldest entries are discarded.
-- Redo stack is cleared on every new mutation.
-- Dirty flag is set on first mutation and cleared on Save.
-- **Exit without saving** restores the originally loaded (persisted) config in memory via `SFP.config.overrides()`.
+- Each mutation pushes a deep-clone of the full dashboard config onto the undo stack before applying.
+- Stack depth capped at 50. Redo stack cleared on new mutation.
+- Dirty flag set on first mutation, cleared on successful Save.
+- **Discard** restores the _baseline_ snapshot taken at session start (or the last saved state if Save was called during the session).
+
+### Session Baseline
+
+At `_activate(pageId)` a `_baseline` deep-clone is taken. `_save()` advances `_baseline` to the just-saved config. `_deactivate(discard=true)` calls `SFP.config.define('dashboard.<id>', _baseline)` to restore the in-memory registry.
 
 ### Factory-Map Guard
 
-The layout editor checks `isFactoryMap(dashboardId)` which returns true when:
-1. `dashboardId === 'factory-map'`, or
-2. The dashboard config contains any widget of type `'factory-twin'`.
+`isFactoryMap(dashboardId)` returns true when `dashboardId === 'factory-map'` or the dashboard config contains a `factory-twin` widget. The layout editor adapter is not registered for those pages.
 
-Neither detection path modifies `dashboard-renderer.js`.
+## Twin Editor (Factory Map)
+
+The twin editor (`SFP.twin.Editor`) now registers a twin adapter with `editSession`. Changes:
+
+- **Redo stack** added — `_commitLayout`/`_commitConnections` clear redo on commit; `_undo()` pushes to redo; new `_redo()` method mirrors the layout-editor pattern.
+- **Ctrl+Y** redo shortcut added to `_onKey`.
+- **Banner chrome** reduced to the tool-hint message only; Save/Undo/Redo/dirty indicator are removed from the twin banner (they live in the unified editSession bar).
+- `_refreshSessionUI()` now calls `SFP.ui.editSession.refresh()` to tell the bar to re-query button states.
+- `editor.getAdapter()` returns the adapter object; `factory-twin.js` registers it with `editSession.registerAdapter` for the `factory-map` page.
 
 ## Add-Dashboard "+" Tab (Feature B)
 
-When edit mode is active the tab bar gains a dashed **"New page"** tab at the rightmost position.
+Unchanged from previous implementation. See git history for details.
 
-### Creating a Page
-
-1. Click the "+" tab.
-2. An inline dialog asks for a page name (no `window.prompt`).
-3. On confirm: a kebab-case id is generated (e.g. `quality`); uniqueness is enforced with a numeric suffix.
-4. An empty dashboard config `{ grid: {columns:12, gap:12}, widgets: [] }` is created.
-5. Both the app config (`SFP.config.override('app', ...)`) and the empty dashboard (`SFP.config.override('dashboard.<id>', ...)`) are persisted to localStorage.
-6. The new page id is recorded in `sfp.userPageIds` localStorage key so it is identified as user-added across reloads.
-7. The tab bar is rebuilt and the app navigates to the new page (which shows an empty grid).
-
-### Reload Persistence
-
-`config-overrides.js` runs its `applyPersistedOverrides()` IIFE before `app.js` reads the app config. This means the overridden `app` config (with user-added pages) and the overridden dashboard configs are all in memory before the shell or nav initialise. User-added pages therefore survive reload exactly like built-in ones.
-
-### Renaming a Page
-
-Right-click a user-added tab to open the rename dialog. Confirms via Enter or the "Rename" button. Persists updated `app` config via `SFP.config.override('app', ...)`.
-
-### Deleting a Page
-
-Click the small `×` badge that appears on user-added tabs in edit mode. A confirmation dialog is shown. On confirm:
-
-- The page is removed from `appCfg.pages` and the app override is re-saved.
-- `SFP.config.clearOverride('dashboard.<id>')` removes the dashboard from localStorage.
-- The page id is removed from `sfp.userPageIds`.
-- If the current page was the deleted one, navigation falls back to the first page.
-
-Built-in pages (those present in `app.config.js`) do not get a `×` button.
-
-## Files Changed
+## Files Changed / Added
 
 | File | Change |
 |------|--------|
-| `src/ui/layout-editor.js` | **New** — `SFP.ui.layoutEditor` module |
-| `src/ui/app-shell.js` | "+" tab, per-tab edit decorations, `_rebuildTabs`, add/rename/delete page logic, `_onEditClick` reworked, `_renderPage` layout-editor guard |
-| `styles/base.css` | New CSS classes: `le-*`, `tab-add-btn`, `tab-edit-remove` |
-| `index.html` | Added `<script src="src/ui/layout-editor.js">` after `dashboard-editor.js` |
+| `src/ui/edit-session.js` | **New** — unified edit bar + adapter contract |
+| `src/ui/layout-editor.js` | Removed own top bar + exit button; registered layout adapter; added docked prop panel; added right-edge + bottom-edge resize handles; added session baseline for honest discard |
+| `src/ui/app-shell.js` | `_renderPage` guard updated to check `editSession.isActive()` |
+| `src/ui/dashboard-editor.js` | `open()` is now a back-compat stub (no-op when layout editor active) |
+| `src/twin/twin-editor.js` | Removed Save/Undo from banner; added redo stack + `_redo()`; `_refreshSessionUI` delegates to editSession; `getAdapter()` exposed |
+| `src/widgets/factory-twin.js` | Registers twin adapter with `editSession` |
+| `src/core/config-overrides.js` | `writeMap()` returns bool; `override()` returns bool |
+| `styles/base.css` | New: `le-resize-corner/right/bottom`, `le-prop-panel`, `le-prop-*` classes |
+| `index.html` | Added `edit-session.js` script after `layout-editor.js` |
 | `docs/dashboard-layout-editing.md` | This file |
 
 ## Deviations from Spec
 
-- **Widget gear button opens the full-page dashEditor** (not a scoped single-widget editor). The existing `SFP.ui.dashEditor` works at dashboard granularity (all widgets, reorder/type/span/minH/JSON). Scoping it to a single widget would require rewriting or wrapping it. The existing editor is fully functional and reached via the gear button on each cell; this is a simpler and more powerful UX. Spec said "reuse its JSON options/bind editing" — we do exactly that.
-- **"+" tab label** is "New page" rather than bare "+", to be more discoverable (spec only specified the icon/position, not the exact label).
-- **No col-pinning** (`layout.col`) is written back by the resize handle. Reorder is by array position (CSS grid `auto-flow`). Explicit column pinning can be set via the JSON options in the dashEditor; the layout editor intentionally does not add that complexity for the drag model.
+- **`DOMContentLoaded` adapter registration** — `layout-editor.js` registers its adapter in a `DOMContentLoaded` listener instead of immediately, because `edit-session.js` loads after it. This is safe since the app bootstrap also defers to `DOMContentLoaded`.
+- **No col-pinning (`layout.col`)** — reorder is by array position (CSS grid auto-flow). Explicit column pinning can be set via the JSON options in the properties panel.
+- **`_fromSession` flag on `edit:modeChanged`** — `editSession._doExit()` emits `{on:false, _fromSession:true}` so the session's own listener does not re-enter. All other listeners (shell `_rebuildTabs`, factory-twin minimap) fire normally.
+- **Twin adapter `onExit` simplification** — when `discard=true`, we call `editor.setActive(false)` which already restores the baseline in its `if (this.session && this.session.dirty)` block. When `discard=false` (save+exit), baseline was updated by `_save()` so `setActive(false)` does not restore — the saved state remains live.
