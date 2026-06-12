@@ -296,6 +296,13 @@
   overflow: hidden;
 }
 
+/* When one or more groups are collapsed the JS sets an explicit pixel height
+ * on the wrap. This modifier class overrides the min-height floor so the
+ * widget can actually shrink below 160px (down to the JS-enforced 60px floor). */
+.gantt-canvas-wrap--collapsed {
+  min-height: 0;
+}
+
 .gantt-canvas-wrap canvas {
   display: block;
   width: 100%;

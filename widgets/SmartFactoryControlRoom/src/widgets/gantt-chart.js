@@ -14,10 +14,13 @@
  *                                          asset node hierarchy. Tags that have
  *                                          no asset are placed under an
  *                                          'Ungrouped' header.
- *   rows:       Array<{datapoint,label}>   Explicit row list. Used when asset
- *                                          is not set. Will also be grouped
- *                                          under asset structure if assetOfTag
- *                                          returns paths, otherwise flat.
+ *   rows:       Array<string|{datapoint,label}>
+ *                                          Explicit row list. Accepts plain tag-id
+ *                                          strings (e.g. ['tagA','tagB']) or objects
+ *                                          {datapoint, label?}. Used when asset is
+ *                                          not set. Will also be grouped under asset
+ *                                          structure if assetOfTag returns paths,
+ *                                          otherwise flat.
  *
  *   window:     number (seconds)           Visible time window (default 3600).
  *
@@ -34,6 +37,11 @@
  *   rowHeight:  number (px)               Height of each data row (default 22).
  *   maxRows:    number                    Maximum rows shown; excess shown as
  *                                         '+N more' note (default 30).
+ *
+ *   collapsible: boolean                  Enable collapse/expand on group headers
+ *                                         (default true).
+ *   collapsedGroups: Array<string>        Keys (label or asset path) of groups
+ *                                         that start collapsed.
  * }
  *
  * bind: (not used — rows come from options.asset or options.rows)
@@ -59,6 +67,10 @@
   var LEGEND_H      = 28;    // legend strip height px
   var HEADER_ROW_H  = 18;    // group-header row height px
   var MIN_TICK_PX   = 60;    // minimum pixels between time-axis ticks
+  var CHEVRON_W     = 14;    // space reserved for chevron in header label
+
+  /* Minimum canvas-wrap height when all groups are collapsed */
+  var COLLAPSED_FLOOR_PX = 60;
 
   /* ── Palette for value hashing ─────────────────────────────────────────── */
 
@@ -168,8 +180,10 @@
   /* ── Build row list from asset tree ───────────────────────────────────── */
 
   /* A "display row" is either:
-   *   { isHeader: true, label, depth }
+   *   { isHeader: true, label, depth, key }
    *   { isHeader: false, datapoint, label, depth }
+   *
+   * key on header rows is a stable identifier used as the collapse-state key.
    */
   function buildRowsFromAsset(assetPath, maxRows) {
     var assets = SFP.data.assets;
@@ -209,6 +223,7 @@
           isHeader: true,
           label: node.name + ' (' + node.code + ')',
           depth: depth,
+          key: path,
         });
         nodeTags.forEach(function (dpId) {
           if (total >= maxRows) { return; }
@@ -226,7 +241,7 @@
     if (rootNode) { walk(rootNode, 0); }
 
     if (ungrouped.length) {
-      rows.push({ isHeader: true, label: 'Ungrouped', depth: 0 });
+      rows.push({ isHeader: true, label: 'Ungrouped', depth: 0, key: '__ungrouped__' });
       ungrouped.forEach(function (dpId) {
         if (total < maxRows) {
           rows.push({ isHeader: false, datapoint: dpId, label: dpId, depth: 1 });
@@ -238,18 +253,26 @@
     return rows;
   }
 
-  /* Build flat rows from explicit options.rows list, with optional grouping */
+  /* Build flat rows from explicit options.rows list, with optional grouping.
+   * Accepts Array<string | {datapoint, label?}>. Plain strings are treated as
+   * tag ids with label equal to the id. */
   function buildRowsFromExplicit(optRows, maxRows) {
     var assets = SFP.data.assets;
     var rows = [];
     var total = 0;
+
+    /* Normalise entries: strings become {datapoint, label} objects */
+    var normalised = optRows.map(function (r) {
+      if (typeof r === 'string') { return { datapoint: r, label: r }; }
+      return r;
+    });
 
     /* Try grouping under asset structure */
     var grouped = false;
     var tagsByNode = {};
     var ungrouped = [];
 
-    optRows.forEach(function (r) {
+    normalised.forEach(function (r) {
       var nodePath = assets ? assets.assetOfTag(r.datapoint) : null;
       if (nodePath) {
         grouped = true;
@@ -264,7 +287,7 @@
       Object.keys(tagsByNode).forEach(function (nodePath) {
         var node = assets.node(nodePath);
         var label = node ? node.name + ' (' + node.code + ')' : nodePath;
-        rows.push({ isHeader: true, label: label, depth: 0 });
+        rows.push({ isHeader: true, label: label, depth: 0, key: nodePath });
         tagsByNode[nodePath].forEach(function (r) {
           if (total < maxRows) {
             rows.push({ isHeader: false, datapoint: r.datapoint, label: r.label || r.datapoint, depth: 1 });
@@ -273,7 +296,7 @@
         });
       });
       if (ungrouped.length) {
-        rows.push({ isHeader: true, label: 'Ungrouped', depth: 0 });
+        rows.push({ isHeader: true, label: 'Ungrouped', depth: 0, key: '__ungrouped__' });
         ungrouped.forEach(function (r) {
           if (total < maxRows) {
             rows.push({ isHeader: false, datapoint: r.datapoint, label: r.label || r.datapoint, depth: 1 });
@@ -282,7 +305,7 @@
         });
       }
     } else {
-      optRows.forEach(function (r) {
+      normalised.forEach(function (r) {
         if (total < maxRows) {
           rows.push({ isHeader: false, datapoint: r.datapoint, label: r.label || r.datapoint, depth: 0 });
           total++;
@@ -370,9 +393,18 @@
       var rowH      = o.rowHeight || 22;
       var maxRows   = o.maxRows  || 30;
 
+      /* collapsible feature flag (default true) */
+      var collapsible = (o.collapsible !== false);
+
+      /* Collapsed-state map: groupKey -> boolean */
+      var collapsedState = {};
+      if (collapsible && o.collapsedGroups && Array.isArray(o.collapsedGroups)) {
+        o.collapsedGroups.forEach(function (k) { collapsedState[k] = true; });
+      }
+
       /* ── Build display row list ─────────────────────────────────────── */
 
-      var displayRows;   /* Array of {isHeader,label,depth} or {isHeader:false,datapoint,label,depth} */
+      var displayRows;   /* Array of {isHeader,label,depth[,key]} or {isHeader:false,datapoint,label,depth} */
       var truncatedCount = 0;
 
       if (o.asset) {
@@ -454,6 +486,86 @@
         canvas.style.height = cssH + 'px';
       }
 
+      /* ── Visible row list (respects collapse state) ─────────────────── */
+
+      /*
+       * Returns a filtered copy of displayRows where rows belonging to a
+       * collapsed header (and any deeper headers that might themselves be
+       * collapsed) are omitted.
+       *
+       * Algorithm: walk displayRows linearly. When we encounter a header
+       * that is collapsed, remember its depth as the "skip depth". Skip
+       * all subsequent rows until we see a header with depth <= skip depth.
+       * When we see such a header, stop skipping and process it normally
+       * (it may itself be collapsed too).
+       */
+      function buildVisibleRows() {
+        var visible = [];
+        var skipDepth = -1;   /* -1 means not skipping */
+
+        for (var i = 0; i < displayRows.length; i++) {
+          var row = displayRows[i];
+
+          if (skipDepth >= 0) {
+            /* Currently skipping — only stop if this is a header at same/shallower depth */
+            if (row.isHeader && row.depth <= skipDepth) {
+              skipDepth = -1;   /* stop skipping, fall through to normal processing */
+            } else {
+              continue;   /* skip this row */
+            }
+          }
+
+          visible.push(row);
+
+          if (row.isHeader && collapsible && collapsedState[row.key]) {
+            /* Start skipping content under this header */
+            skipDepth = row.depth;
+          }
+        }
+
+        return visible;
+      }
+
+      /* ── Content-height calculation ─────────────────────────────────── */
+
+      /*
+       * Returns the pixel height needed to display all visible rows plus
+       * legend and axis areas. Used to drive the vertical-shrink feature.
+       */
+      function computeContentHeight(visibleRows) {
+        var h = LEGEND_H + AXIS_H;
+        for (var i = 0; i < visibleRows.length; i++) {
+          h += visibleRows[i].isHeader ? HEADER_ROW_H : rowH;
+        }
+        return h;
+      }
+
+      /* ── Update wrap height (vertical shrink) ───────────────────────── */
+
+      /*
+       * When any group is collapsed we set an explicit pixel height on the
+       * wrap so the widget actually shrinks. When everything is expanded we
+       * remove the explicit height so the widget fills the grid cell as
+       * before (preserving existing dashboard behaviour).
+       */
+      function updateWrapHeight(visibleRows) {
+        var anyCollapsed = Object.keys(collapsedState).some(function (k) {
+          return collapsedState[k];
+        });
+
+        if (!anyCollapsed) {
+          /* Fully expanded: let CSS / grid drive the height */
+          canvasWrap.style.height = '';
+          canvasWrap.classList.remove('gantt-canvas-wrap--collapsed');
+          return;
+        }
+
+        var contentPx = computeContentHeight(visibleRows);
+        var targetPx  = Math.max(COLLAPSED_FLOOR_PX, contentPx);
+        canvasWrap.style.height = targetPx + 'px';
+        canvasWrap.classList.add('gantt-canvas-wrap--collapsed');
+      }
+
       /* ── Tooltip state ──────────────────────────────────────────────── */
 
       var hoverInfo = null;    /* { dp, value, quality, t0, t1, x, y } | null */
@@ -462,7 +574,7 @@
        *
        * Layout (top to bottom):
        *   [LEGEND_H]  legend chips
-       *   [rows...]   each display row (header or data)
+       *   [rows...]   each visible display row (header or data)
        *   [AXIS_H]    time axis
        *
        * Layout (left to right):
@@ -471,6 +583,8 @@
        */
 
       function draw() {
+        var visibleRows = buildVisibleRows();
+
         var c = canvas.getContext('2d');
         c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -564,7 +678,7 @@
 
         c.textAlign = 'left';
 
-        displayRows.forEach(function (row) {
+        visibleRows.forEach(function (row) {
           if (rowY >= axisY) { return; }
 
           if (row.isHeader) {
@@ -573,9 +687,22 @@
             c.fillStyle = theme.color('bg-raised');
             c.fillRect(0, rowY, W, hH);
 
+            var indent = 6 + row.depth * 8;
+            var isCollapsed = collapsible && collapsedState[row.key];
+
+            /* Draw chevron */
+            if (collapsible && row.key !== undefined) {
+              c.font = '700 9px "Segoe UI", system-ui, sans-serif';
+              c.fillStyle = theme.color('text-3');
+              c.fillText(
+                isCollapsed ? '▶' : '▼',
+                indent, rowY + hH / 2 + 3
+              );
+              indent += CHEVRON_W;
+            }
+
             c.font = '700 10px "Segoe UI", system-ui, sans-serif';
             c.fillStyle = theme.color('text-3');
-            var indent = 6 + row.depth * 8;
             c.fillText(
               truncate(c, row.label, GUTTER_W - indent - 8),
               indent, rowY + hH / 2 + 3
@@ -731,54 +858,71 @@
       /* Sliding-window redraw so bars scroll even when no new data arrives */
       var slideTimer = setInterval(scheduleRedraw, DRAW_INTERVAL);
 
-      /* ── Hover / tooltip ──────────────────────────────────────────────── */
-
-      function findSegmentAt(canvasX, canvasY) {
-        /* Determine which row was hit */
+      /* ── Shared layout-walk helper ─────────────────────────────────────
+       *
+       * Walks the visible row list and calls cb(row, rectY) for each row.
+       * Returns early (with the cb's return value) if cb returns a non-null/
+       * non-undefined value — similar to Array.find semantics.
+       *
+       * Both findSegmentAt (mousemove) and the click handler use this so the
+       * layout arithmetic stays in one place.
+       */
+      function walkVisibleRows(visibleRows, cb) {
         var rectY = LEGEND_H;
-        for (var ri = 0; ri < displayRows.length; ri++) {
-          var row = displayRows[ri];
-          var rh = row.isHeader ? HEADER_ROW_H : rowH;
-          if (canvasY >= rectY && canvasY < rectY + rh && !row.isHeader) {
-            /* Determine time */
-            var tOffset = (canvasX - GUTTER_W) / (cssW - GUTTER_W) * windowMs;
-            var tHit = Date.now() - windowMs + tOffset;
-            /* Find matching segment */
-            var rd = rowData[row.datapoint];
-            if (!rd || !rd.samples.length) { break; }
-            var samples = rd.samples;
-            var tStart2 = Date.now() - windowMs;
-            var seg = null, segT0, segT1;
-            var prevT = tStart2;
-            var prevV = null, prevQ = null;
-            for (var si = 0; si < samples.length; si++) {
-              var s = samples[si];
-              if (s.t < tStart2) { prevT = s.t; prevV = s.v; prevQ = s.quality; continue; }
-              var segEnd = si + 1 < samples.length ? samples[si + 1].t : Date.now();
-              if (tHit >= s.t && tHit <= segEnd) {
-                seg = { v: s.v, quality: s.quality };
-                segT0 = s.t;
-                segT1 = segEnd;
-                break;
-              }
-              prevT = s.t; prevV = s.v; prevQ = s.quality;
-            }
-            if (!seg && prevV !== null) {
-              seg = { v: prevV, quality: prevQ };
-              segT0 = prevT;
-              segT1 = Date.now();
-            }
-            if (seg) {
-              return {
-                dp: row.datapoint, value: seg.v, quality: seg.quality,
-                t0: segT0, t1: segT1, rowY: rectY, rowH: rh,
-              };
-            }
-            break;
-          }
+        for (var ri = 0; ri < visibleRows.length; ri++) {
+          var row = visibleRows[ri];
+          var rh  = row.isHeader ? HEADER_ROW_H : rowH;
+          var result = cb(row, rectY, rh);
+          if (result !== null && result !== undefined) { return result; }
           rectY += rh;
         }
         return null;
+      }
+
+      /* ── Hover / tooltip ──────────────────────────────────────────────── */
+
+      function findSegmentAt(canvasX, canvasY) {
+        var visibleRows = buildVisibleRows();
+        return walkVisibleRows(visibleRows, function (row, rectY, rh) {
+          if (canvasY < rectY || canvasY >= rectY + rh) { return undefined; }
+          if (row.isHeader) { return null; }   /* hit a header — no tooltip */
+
+          /* Determine time */
+          var tOffset = (canvasX - GUTTER_W) / (cssW - GUTTER_W) * windowMs;
+          var tHit = Date.now() - windowMs + tOffset;
+          /* Find matching segment */
+          var rd = rowData[row.datapoint];
+          if (!rd || !rd.samples.length) { return null; }
+          var samples = rd.samples;
+          var tStart2 = Date.now() - windowMs;
+          var seg = null, segT0, segT1;
+          var prevT = tStart2;
+          var prevV = null, prevQ = null;
+          for (var si = 0; si < samples.length; si++) {
+            var s = samples[si];
+            if (s.t < tStart2) { prevT = s.t; prevV = s.v; prevQ = s.quality; continue; }
+            var segEnd = si + 1 < samples.length ? samples[si + 1].t : Date.now();
+            if (tHit >= s.t && tHit <= segEnd) {
+              seg = { v: s.v, quality: s.quality };
+              segT0 = s.t;
+              segT1 = segEnd;
+              break;
+            }
+            prevT = s.t; prevV = s.v; prevQ = s.quality;
+          }
+          if (!seg && prevV !== null) {
+            seg = { v: prevV, quality: prevQ };
+            segT0 = prevT;
+            segT1 = Date.now();
+          }
+          if (seg) {
+            return {
+              dp: row.datapoint, value: seg.v, quality: seg.quality,
+              t0: segT0, t1: segT1, rowY: rectY, rowH: rh,
+            };
+          }
+          return null;
+        });
       }
 
       canvas.addEventListener('mousemove', function (e) {
@@ -807,8 +951,44 @@
         if (hoverInfo) { hoverInfo = null; tooltip.style.display = 'none'; scheduleRedraw(); }
       });
 
+      /* ── Click handler for collapsible headers ────────────────────────── */
+
+      if (collapsible) {
+        canvas.addEventListener('click', function (e) {
+          var rect = canvas.getBoundingClientRect();
+          var mx = e.clientX - rect.left;
+          var my = e.clientY - rect.top;
+
+          var visibleRows = buildVisibleRows();
+          var hit = walkVisibleRows(visibleRows, function (row, rectY, rh) {
+            if (!row.isHeader) { return undefined; }
+            if (my >= rectY && my < rectY + rh) { return row; }
+            return undefined;
+          });
+
+          if (hit && hit.key !== undefined) {
+            /* Toggle collapsed state */
+            collapsedState[hit.key] = !collapsedState[hit.key];
+            if (!collapsedState[hit.key]) { delete collapsedState[hit.key]; }
+
+            /* Clear hover since row positions changed */
+            hoverInfo = null;
+            tooltip.style.display = 'none';
+
+            /* Update wrap height, re-size canvas, redraw */
+            var newVisible = buildVisibleRows();
+            updateWrapHeight(newVisible);
+            sizeCanvas();
+            paint();
+          }
+        });
+      }
+
       /* ── Initial size + draw ───────────────────────────────────────────── */
 
+      /* Apply initial collapsed groups height before first paint */
+      var initialVisible = buildVisibleRows();
+      updateWrapHeight(initialVisible);
       sizeCanvas();
       paint();
 
@@ -816,6 +996,8 @@
 
       return {
         resize: function () {
+          var vis = buildVisibleRows();
+          updateWrapHeight(vis);
           sizeCanvas();
           paint();
         },

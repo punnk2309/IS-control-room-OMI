@@ -304,8 +304,23 @@
       var stub = cfg.stubWorld;
       var stagger = ((a.slot || 0) + (b.slot || 0)) * cfg.staggerWorld * 0.5;
 
-      var p1 = { x: a.x + a.nx * stub, y: a.y + a.ny * stub };
-      var p2 = { x: b.x + b.nx * stub, y: b.y + b.ny * stub };
+      /* When the endpoints face each other across a gap narrower than two
+       * stubs, full-length stubs overshoot past each other; every direct
+       * L/Z candidate then folds back and a U-detour wins, drawing a loop
+       * where a short straight connector is expected (e.g. two adjacent
+       * subzones once their machines collapse at the subzone zoom tier).
+       * Clamp both stubs to half the gap so they meet in the middle. */
+      var stubA = stub, stubB = stub;
+      if (a.nx !== 0 && a.nx === -b.nx) {
+        var gapX = (b.x - a.x) * a.nx;
+        if (gapX > 0 && gapX < stub * 2) { stubA = stubB = gapX / 2; }
+      } else if (a.ny !== 0 && a.ny === -b.ny) {
+        var gapY = (b.y - a.y) * a.ny;
+        if (gapY > 0 && gapY < stub * 2) { stubA = stubB = gapY / 2; }
+      }
+
+      var p1 = { x: a.x + a.nx * stubA, y: a.y + a.ny * stubA };
+      var p2 = { x: b.x + b.nx * stubB, y: b.y + b.ny * stubB };
       var head = [{ x: a.x, y: a.y }, p1];
       var tail = [p2, { x: b.x, y: b.y }];
 

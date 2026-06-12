@@ -117,24 +117,37 @@
 
   /* ── render ─────────────────────────────────────────────────────────────── */
 
+  /** Run `fn` (which wipes and rebuilds .main-content) without losing the
+   *  user's scroll position — emptying the scroll container resets its
+   *  scrollTop to 0, which made resize-drop and edit-mode enter/exit snap
+   *  the page back to the top. */
+  function _preserveScroll(fn) {
+    var mainEl = document.querySelector('.main-content');
+    var top = mainEl ? mainEl.scrollTop : 0;
+    fn();
+    if (mainEl && top) { mainEl.scrollTop = top; }
+  }
+
   function _rerender() {
     if (!_active || !_pageId) { return; }
     var container = document.querySelector('.main-content');
     if (!container) { return; }
 
-    if (_handle) {
-      try { _handle.destroy(); } catch (e) { /* ignore */ }
-      _handle = null;
-    }
+    _preserveScroll(function () {
+      if (_handle) {
+        try { _handle.destroy(); } catch (e) { /* ignore */ }
+        _handle = null;
+      }
 
-    /* Apply working copy to in-memory registry. */
-    SFP.config.define('dashboard.' + _pageId, _cfg);
+      /* Apply working copy to in-memory registry. */
+      SFP.config.define('dashboard.' + _pageId, _cfg);
 
-    _handle = SFP.ui.dashboards.render(
-      container, _pageId, SFP.ui.nav.current().params);
-    _columns = (_cfg.grid && _cfg.grid.columns) || 12;
+      _handle = SFP.ui.dashboards.render(
+        container, _pageId, SFP.ui.nav.current().params);
+      _columns = (_cfg.grid && _cfg.grid.columns) || 12;
 
-    _overlayEditChrome(container);
+      _overlayEditChrome(container);
+    });
     /* Refresh the docked properties panel if open (index may be out of range
      * if the widget was deleted — _renderPropPanel guards for this). */
     if (_propPanelEl && _propWidgetIdx >= 0) { _renderPropPanel(); }
@@ -616,18 +629,20 @@
     _session  = { undo: [], redo: [], dirty: false };
     _active   = true;
 
-    /* Destroy the shell's pageHandle if it rendered before us so we don't
-     * double-instantiate widgets. */
-    if (SFP.ui.shell && SFP.ui.shell.pageHandle) {
-      try { SFP.ui.shell.pageHandle.destroy(); } catch (e) { /* ignore */ }
-      SFP.ui.shell.pageHandle = null;
-    }
+    _preserveScroll(function () {
+      /* Destroy the shell's pageHandle if it rendered before us so we don't
+       * double-instantiate widgets. */
+      if (SFP.ui.shell && SFP.ui.shell.pageHandle) {
+        try { SFP.ui.shell.pageHandle.destroy(); } catch (e) { /* ignore */ }
+        SFP.ui.shell.pageHandle = null;
+      }
 
-    /* Mark main-content so padding adjusts (editSession inserts the bar). */
-    var mainEl = document.querySelector('.main-content');
-    if (mainEl) { mainEl.classList.add('le-active'); }
+      /* Mark main-content so padding adjusts (editSession inserts the bar). */
+      var mainEl = document.querySelector('.main-content');
+      if (mainEl) { mainEl.classList.add('le-active'); }
 
-    _rerender();
+      _rerender();
+    });
     /* editSession.refresh() called via _refreshBar() notifies the bar. */
     _refreshBar();
   }
@@ -658,18 +673,20 @@
     var mainEl = document.querySelector('.main-content');
     if (mainEl) { mainEl.classList.remove('le-active'); }
 
-    /* Destroy render handle. */
-    if (_handle) {
-      try { _handle.destroy(); } catch (e) { /* ignore */ }
-      _handle = null;
-    }
+    _preserveScroll(function () {
+      /* Destroy render handle. */
+      if (_handle) {
+        try { _handle.destroy(); } catch (e) { /* ignore */ }
+        _handle = null;
+      }
 
-    /* Re-render clean with whatever config is now live. */
-    if (mainEl && _pageId) {
-      var freshHandle = SFP.ui.dashboards.render(
-        mainEl, _pageId, SFP.ui.nav.current().params);
-      if (SFP.ui.shell) { SFP.ui.shell.pageHandle = freshHandle; }
-    }
+      /* Re-render clean with whatever config is now live. */
+      if (mainEl && _pageId) {
+        var freshHandle = SFP.ui.dashboards.render(
+          mainEl, _pageId, SFP.ui.nav.current().params);
+        if (SFP.ui.shell) { SFP.ui.shell.pageHandle = freshHandle; }
+      }
+    });
 
     /* Cancel any in-flight drag / resize. */
     if (_drag) {

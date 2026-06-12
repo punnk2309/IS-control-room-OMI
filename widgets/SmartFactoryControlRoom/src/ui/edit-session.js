@@ -204,24 +204,26 @@
 
   function _swapAdapter(pageId) {
     if (!_active) { return; }
-    var newAdapter = _pickAdapter(pageId);
-    if (!newAdapter) {
-      /* No adapter for this page — remove bar but stay in edit mode so
-       * returning to an editable page re-installs it. */
-      _removeBar();
-      if (_adapter && _adapter.onExit) { _adapter.onExit(false); }
-      _adapter = null;
-      _pageId  = pageId;
-      return;
-    }
 
-    /* Suspend the old adapter (non-discard: keep current in-memory state). */
+    /* Suspend the old adapter BEFORE creating the new one (non-discard:
+     * keep current in-memory state).  Editors are singleton modules, so
+     * calling onExit after the factory has activated the new page would
+     * tear down the freshly created session and leave the bar pointing at
+     * a dead adapter — repeated tab switches then blank the page. */
     if (_adapter && _adapter.onExit) {
       _adapter.onExit(false);
     }
-
+    _adapter = null;
     _removeBar();
     _pageId  = pageId;
+
+    var newAdapter = _pickAdapter(pageId);
+    if (!newAdapter) {
+      /* No adapter for this page — bar stays removed but edit mode stays
+       * on so returning to an editable page re-installs it. */
+      return;
+    }
+
     _adapter = newAdapter;
     _insertBar(newAdapter);
     _refreshBar();
