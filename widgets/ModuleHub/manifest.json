@@ -1,0 +1,53 @@
+{
+  "name": "ModuleHub",
+  "version": "0.1.0",
+  "description": "CWP widget platform for sandboxed industrial modules — load and run ModuleHub modules with live OMI data or simulation fallback",
+  "author": "IS Control Room",
+  "entryPoint": "index.html",
+  "defaultWidth": 1920,
+  "defaultHeight": 1080,
+  "minOmiVersion": "2022.1",
+  "properties": [
+    {
+      "name": "defaultModule",
+      "displayName": "Default Module",
+      "type": "String",
+      "default": "bag-filter-tracker",
+      "description": "ID of the module to load on startup (must match a folder in modules/)",
+      "category": "Display"
+    },
+    {
+      "name": "theme",
+      "displayName": "Theme",
+      "type": "Enum",
+      "values": ["dark", "light"],
+      "default": "dark",
+      "description": "Visual theme passed to the shell and all loaded modules",
+      "category": "Display"
+    },
+    {
+      "name": "storeUrl",
+      "displayName": "Store URL",
+      "type": "String",
+      "default": "",
+      "description": "REST endpoint for the ModuleHub store service (empty = IndexedDB-only local mode)",
+      "category": "Data"
+    },
+    {
+      "name": "storeKey",
+      "displayName": "Store API Key",
+      "type": "String",
+      "default": "",
+      "description": "X-Api-Key header value for the store service (empty = auth disabled)",
+      "category": "Data"
+    },
+    {
+      "name": "canEdit",
+      "displayName": "Can Edit (Studio)",
+      "type": "Boolean",
+      "default": true,
+      "description": "Show the Studio button in the header — bind to an OMI role expression to gate per user",
+      "category": "Security"
+    }
+  ]
+}

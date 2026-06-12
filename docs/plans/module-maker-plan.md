@@ -1,7 +1,12 @@
-# ModuleHub — Custom Module Maker Platform (PLAN — awaiting go-ahead)
+# ModuleHub — Custom Module Maker Platform
 
-Status: **PLANNED, NOT STARTED.** This document is the execution blueprint.
-Nothing in this plan has been built; do not assume any file below exists yet.
+Status: **BUILT — v0.1.0 (2026-06-12).** §1–§5 and §7 are implemented and
+verified (browser smoke + Studio workflow + packaged-artifact + simulated
+OMI-host + store-service E2E, incl. offline buffer/replay). Binding interface
+spec: `docs/plans/modulehub-contracts.md`. User docs: `widgets/ModuleHub/docs/`.
+Deployable artifact: `dist/ModuleHub-v0.1.0.cwp` (rebuild via
+`scripts/package-cwp.ps1 -WidgetName ModuleHub`). The MLOps track (§6,
+Packets A–E) remains FUTURE work on plant data — not built.
 
 ## 1. What it is
 
@@ -61,7 +66,7 @@ folder on the server.
 ## 3. Demo 1 — Bag Filter Tracker (interactive app capability)
 
 240 bag-filter frame slots laid out as a custom array map (reactor-rod style
-grid, e.g. 16×15 with aisle gaps, configurable in the module's config block).
+grid within circular frame, configurable in the module's config block).
 
 - Each frame: upper section + lower section (individually detachable) + bag
   (slides over the assembled frame). Three independently tracked parts per
@@ -80,7 +85,7 @@ grid, e.g. 16×15 with aisle gaps, configurable in the module's config block).
 
 ## 4. Demo 2 — Live Mollier Diagram (advanced graphics capability)
 
-Canvas-2D psychrometric/Mollier chart (enthalpy–humidity, DIN-style axes) for
+Canvas-2D swappable psychrometric/Mollier chart (enthalpy–humidity, DIN-style axes) for
 a closed-top creamer spray dryer:
 
 - Static layer: isotherms, RH curves, enthalpy lines, saturation curve —

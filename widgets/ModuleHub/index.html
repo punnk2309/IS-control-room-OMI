@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModuleHub</title>
+  <link rel="stylesheet" href="styles/modulehub.css">
+</head>
+<body>
+  <!-- Shell mount point — app.js renders the header + module container here -->
+  <div id="app"></div>
+
+  <!-- ═══ Platform core (order matters: namespace first) ════════════════════ -->
+  <script src="src/core/namespace.js"></script>
+  <script src="src/core/bus.js"></script>
+  <script src="src/core/theme.js"></script>
+
+  <!-- ═══ Host-side SDK support files (written by sdk agent) ═══════════════ -->
+  <script src="src/sdk/sdk-assets-data.js"></script>
+  <script src="src/sdk/sdk-store.js"></script>
+
+  <!-- ═══ Module registry ══════════════════════════════════════════════════ -->
+  <script src="src/core/registry.js"></script>
+
+  <!-- ═══ Runtime (sandbox bridge first, then loader) ════════════════════ -->
+  <script src="src/runtime/sandbox.js"></script>
+  <script src="src/runtime/loader.js"></script>
+
+  <!-- ═══ Studio (after runtime, before app) ══════════════════════════════ -->
+  <link rel="stylesheet" href="styles/studio.css">
+  <script src="src/studio/studio-zip.js"></script>
+  <script src="src/studio/studio.js"></script>
+
+  <!-- ═══ Bootstrap (must be last) ════════════════════════════════════════ -->
+  <script src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "port": 8743,
+  "bind": "0.0.0.0",
+  "dbPath": "./data/modulehub.db",
+  "apiKey": "",
+  "maxRows": 500000,
+  "maxDbMB": 512,
+  "backupDir": "./backups",
+  "backupKeep": 7,
+  "libraryDir": "./library",
+  "sdkDir": "../../widgets/ModuleHub/src/sdk"
+}

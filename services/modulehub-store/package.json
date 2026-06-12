@@ -1,0 +1,12 @@
+{
+  "name": "modulehub-store",
+  "version": "0.1.0",
+  "description": "ModuleHub persistence service — SQLite-backed REST store for tx and kv data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12"
+  }
+}

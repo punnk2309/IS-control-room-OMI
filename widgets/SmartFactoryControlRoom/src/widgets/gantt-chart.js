@@ -612,6 +612,9 @@
         var ly = 6;
         var chipH = 10;
         c.font = '600 10px "Segoe UI", system-ui, sans-serif';
+        /* The axis pass leaves textAlign at 'center' on the shared context;
+           reset it or legend labels render centered over their chips */
+        c.textAlign = 'left';
         legendEntries.forEach(function (entry) {
           c.fillStyle = entry.color;
           c.fillRect(lx, ly + (LEGEND_H - chipH) / 2 - 1, 14, chipH);

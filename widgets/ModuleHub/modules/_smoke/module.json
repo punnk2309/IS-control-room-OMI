@@ -1,0 +1,12 @@
+{
+  "id": "_smoke",
+  "name": "SDK Smoke Test",
+  "version": "1.0.0",
+  "minSdk": "1.0",
+  "entry": "main.js",
+  "permissions": {
+    "tags": ["smoke.*"],
+    "store": ["smoke"]
+  },
+  "config": {}
+}

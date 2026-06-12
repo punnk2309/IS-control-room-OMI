@@ -24,6 +24,7 @@ SFP.config.define('app', {
     { id: 'factory-map', label: 'Factory Map', icon: 'map',              dashboard: 'factory-map' },
     { id: 'maintenance', label: 'Maintenance', icon: 'wrench',           dashboard: 'maintenance' },
     { id: 'analytics',   label: 'Analytics',   icon: 'trending-up',      dashboard: 'analytics' },
+    { id: 'modules',     label: 'Modules',     icon: 'layers',           dashboard: 'modules' },
   ],
 
   data: {
