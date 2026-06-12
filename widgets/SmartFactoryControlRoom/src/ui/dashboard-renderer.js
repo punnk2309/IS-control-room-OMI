@@ -23,7 +23,55 @@
 
   var dom = SFP.dom;
 
-  function buildContext(cell, widgetCfg, params, cleanups) {
+  /* ── NO-DATA overlay helpers ──────────────────────────────────────────── */
+
+  /** Build the label text for the overlay's secondary line. Shows up to 3
+   *  ids then summarises the remainder as "+N more". */
+  function unboundLabel(ids) {
+    if (ids.length === 0) { return ''; }
+    var shown = ids.slice(0, 3);
+    var rest  = ids.length - shown.length;
+    var label = shown.join(', ');
+    if (rest > 0) { label += ' +' + rest + ' more'; }
+    return label;
+  }
+
+  /** Inject (or refresh) the NO-DATA overlay inside `cell` for `unboundIds`.
+   *  A single overlay element keyed by class is reused on refresh. */
+  function setOverlay(cell, unboundIds) {
+    var existing = cell.querySelector('.sfp-nodata-overlay');
+    if (!unboundIds || unboundIds.length === 0) {
+      if (existing) { existing.parentNode.removeChild(existing); }
+      return;
+    }
+    if (!existing) {
+      existing = dom.el('div', { class: 'sfp-nodata-overlay' }, [
+        dom.el('div', { class: 'sfp-nodata-content' }, [
+          dom.el('div', { class: 'sfp-nodata-title', text: 'NO DATA' }),
+          dom.el('div', { class: 'sfp-nodata-ids' }),
+        ]),
+      ]);
+      cell.appendChild(existing);
+    }
+    var idsEl = existing.querySelector('.sfp-nodata-ids');
+    if (idsEl) { idsEl.textContent = 'Unbound: ' + unboundLabel(unboundIds); }
+  }
+
+  /** Compute which of the tracked dpIds are currently unbound, then
+   *  add/remove/refresh the overlay for this cell. */
+  function refreshOverlay(cell, trackedIds) {
+    var hub = SFP.data.hub;
+    if (hub.mode !== 'live') {
+      setOverlay(cell, null);
+      return;
+    }
+    var unbound = trackedIds.filter(function (id) { return hub.isUnbound(id); });
+    setOverlay(cell, unbound.length > 0 ? unbound : null);
+  }
+
+  /* ── Widget context builder ───────────────────────────────────────────── */
+
+  function buildContext(cell, widgetCfg, params, cleanups, trackedIds) {
     return {
       root: cell,
       options: widgetCfg.options || {},
@@ -31,6 +79,8 @@
       params: params || {},
 
       subscribe: function (dpId, cb) {
+        /* Record this datapoint so the overlay logic knows what to check. */
+        if (trackedIds.indexOf(dpId) < 0) { trackedIds.push(dpId); }
         var unsub = SFP.data.hub.subscribe(dpId, cb);
         cleanups.push(unsub);
         return unsub;
@@ -96,14 +146,31 @@
         });
         grid.appendChild(cell);
 
+        /* trackedIds collects every dpId this widget subscribes to, so the
+         * overlay refresh knows what to check.  Populated during widget
+         * creation via the ctx.subscribe() wrapper above. */
+        var trackedIds = [];
         var cleanups = [];
         var instance = null;
         try {
-          instance = SFP.widgets.create(widgetCfg.type, buildContext(cell, widgetCfg, params, cleanups));
+          instance = SFP.widgets.create(
+            widgetCfg.type,
+            buildContext(cell, widgetCfg, params, cleanups, trackedIds)
+          );
         } catch (err) {
           errorCard(cell, widgetCfg.type, err);
         }
-        instances.push({ instance: instance, cleanups: cleanups });
+
+        /* Initial overlay check (widget may already be in live mode). */
+        refreshOverlay(cell, trackedIds);
+
+        /* Re-evaluate on every mode switch for the lifetime of this cell. */
+        var unsubMode = SFP.bus.on('data:modeChanged', function () {
+          refreshOverlay(cell, trackedIds);
+        });
+        cleanups.push(unsubMode);
+
+        instances.push({ instance: instance, cleanups: cleanups, cell: cell });
       });
 
       dom.clear(container);

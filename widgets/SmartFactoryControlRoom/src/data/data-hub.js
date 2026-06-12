@@ -108,6 +108,17 @@
     };
   };
 
+  /** Returns true when mode is 'live' AND the datapoint has no real live
+   *  source binding (i.e. it would route to null or simulation fallback).
+   *  Computed and derived datapoints are never considered unbound. */
+  DataHub.prototype.isUnbound = function (id) {
+    if (this.mode !== 'live') { return false; }
+    var def = this.defs[id];
+    if (!def) { return false; }
+    if (def.computed || def.derived) { return false; }
+    return !(def.source && this.sources[def.source.type]);
+  };
+
   /** Last known sample, or null. Does not activate the datapoint. */
   DataHub.prototype.get = function (id) {
     var entry = this.entries[id];

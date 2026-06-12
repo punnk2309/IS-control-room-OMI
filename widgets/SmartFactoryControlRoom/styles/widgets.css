@@ -4,6 +4,45 @@
  * One section per widget type. Colors via --c-* theme variables only.
  * ========================================================================== */
 
+/* ── sfp-nodata-overlay ─────────────────────────────────────────────────── */
+/* Shown over a dash-cell when mode is live and all subscribed datapoints
+ * lack a live source binding. dash-cell is position:relative (see base.css). */
+
+.sfp-nodata-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--c-bg-base) 72%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Let through resize handles / scroll on neighbour cards; block on self. */
+  pointer-events: none;
+}
+
+.sfp-nodata-content {
+  text-align: center;
+  pointer-events: none;
+}
+
+.sfp-nodata-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--c-text-3);
+}
+
+.sfp-nodata-ids {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-3);
+  opacity: 0.75;
+  max-width: 220px;
+  word-break: break-all;
+}
+
 /* ── kpi-card ───────────────────────────────────────────────────────────── */
 
 .kpi-card { gap: 4px; }
@@ -246,6 +285,65 @@
 .stat-right { text-align: right; }
 .stat-value { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-trend { font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
+
+/* ── gantt-chart ─────────────────────────────────────────────────────────── */
+
+.gantt-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  overflow: hidden;
+}
+
+.gantt-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gantt-tooltip {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border-strong);
+  border-radius: 6px;
+  padding: 6px 9px;
+  min-width: 130px;
+  max-width: 200px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+}
+
+.gantt-tt-dp {
+  font-size: 9px;
+  color: var(--c-text-3);
+  font-weight: 600;
+  word-break: break-all;
+  margin-bottom: 2px;
+}
+
+.gantt-tt-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--c-text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.gantt-tt-qual {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--c-warn);
+  margin-top: 1px;
+}
+
+.gantt-tt-time {
+  font-size: 9px;
+  color: var(--c-text-3);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* The Factory Map page is the factory-twin widget — its styles live in
  * styles/twin.css (everything theme-token driven). */

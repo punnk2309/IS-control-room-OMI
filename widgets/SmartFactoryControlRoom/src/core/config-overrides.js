@@ -51,8 +51,18 @@
    * override(id, obj)
    * Registers obj as the live config for id (via SFP.config.define) and
    * persists it into localStorage so the override survives a page reload.
+   *
+   * Permission gate: when SFP.runtime exists and canEdit === false the call is
+   * refused (no write, console.warn). This is belt-and-braces protection; the
+   * primary UI entry points are already gated. The startup applyPersistedOverrides
+   * path is unaffected because it calls SFP.config.define() directly, not this
+   * function. Non-edit callers (e.g. export helpers) also call define() directly.
    */
   SFP.config.override = function (id, obj) {
+    if (window.SFP && window.SFP.runtime && window.SFP.runtime.canEdit === false) {
+      console.warn('[SFP.config] override("' + id + '") refused — canEdit is false.');
+      return;
+    }
     SFP.config.define(id, obj);
     var map = readMap();
     map[id] = obj;

@@ -31,6 +31,8 @@
       mode: 'simulation',        // 'simulation' | 'live'
       editMode: false,           // visual config editor active (header toggle)
       omiHosted: false,          // true when running inside an OMI host frame
+      canEdit: true,             // permission gate for edit mode (see src/app.js)
+                                 // true until app.js resolves it at start() time
       properties: {},            // properties received from omi:init
     },
   };

@@ -22,18 +22,21 @@ SFP.config.define('datapoints', {
 
   'production.rate': {
     label: 'Production Rate', unit: 'units/hr', decimals: 0,
+    asset: '0017-NIF-LIN01',
     source: { type: 'omi', address: 'Production.Rate' },
     sim: { type: 'wave', min: 2550, max: 3050, period: '24h', jitter: 35, phase: 4.2 },
     history: { window: '7d', interval: '10m' },
   },
   'production.efficiency': {
     label: 'Efficiency', unit: '%', decimals: 1,
+    asset: '0017-NIF-LIN01',
     source: { type: 'omi', address: 'Production.Efficiency' },
     sim: { type: 'walk', min: 88, max: 97, step: 0.4 },
     history: { window: '7d', interval: '10m' },
   },
   'production.downtime': {
     label: 'Downtime', unit: 'hrs', decimals: 1,
+    asset: '0017-NIF-LIN02',
     source: { type: 'omi', address: 'Production.Downtime' },
     sim: { type: 'walk', min: 0.4, max: 3.8, step: 0.15 },
     history: { window: '7d', interval: '10m' },
@@ -47,12 +50,14 @@ SFP.config.define('datapoints', {
 
   'energy.totalUsage': {
     label: 'Total Energy', unit: 'kWh', decimals: 1,
+    asset: '0017-UTL',
     source: { type: 'omi', address: 'Energy.TotalUsage' },
     sim: { type: 'wave', min: 530, max: 965, period: '24h', jitter: 22, phase: 4.0 },
     history: { window: '7d', interval: '10m' },
   },
   'energy.consumption': {
     label: 'Power Consumption', unit: 'kW', decimals: 0,
+    asset: '0017-UTL',
     source: { type: 'omi', address: 'Energy.TotalConsumption' },
     sim: { type: 'wave', min: 380, max: 820, period: '24h', jitter: 30, phase: 4.0 },
     history: { window: '24h', interval: '2m' },
@@ -69,6 +74,7 @@ SFP.config.define('datapoints', {
   },
   'energy.solar': {
     label: 'Solar Production', unit: 'kW', decimals: 0,
+    asset: '0017-UTL-ENI01',
     source: { type: 'omi', address: 'Energy.SolarProduction' },
     sim: { type: 'wave', min: 8, max: 215, period: '24h', jitter: 6, phase: 4.4 },
     history: { window: '30d', interval: '1h' },

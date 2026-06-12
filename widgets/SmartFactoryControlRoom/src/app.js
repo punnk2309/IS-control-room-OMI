@@ -13,6 +13,13 @@
  * Data mode resolution ('Auto' property default):
  *   - hosted + omi:init received  -> live
  *   - anything else               -> simulation (visibly badged)
+ *
+ * canEdit / edit permission gate:
+ *   - Standalone (not OMI-hosted): SFP.runtime.canEdit = true (dev unaffected).
+ *   - OMI-hosted: SFP.runtime.canEdit = value of the 'canEdit' property from
+ *     omi:init (default false — secure by default).
+ *   - omi:propertyChanged 'canEdit': updates at runtime; if revoked while
+ *     editing, forces edit mode off and emits 'edit:modeChanged'.
  * ========================================================================== */
 (function (SFP) {
   'use strict';
@@ -27,8 +34,22 @@
     return (SFP.runtime.omiHosted && initReceived) ? 'live' : 'simulation';
   }
 
+  function resolveCanEdit(properties) {
+    /* Standalone (not inside an OMI host): always allow edit — dev workflow. */
+    if (!SFP.runtime.omiHosted) { return true; }
+    /* OMI-hosted: read the canEdit property; default to false (secure by default). */
+    var raw = properties.canEdit;
+    if (raw === undefined || raw === null) { return false; }
+    if (raw === true || raw === 'true' || raw === 1 || raw === '1') { return true; }
+    return false;
+  }
+
   function start(properties, initReceived) {
     SFP.runtime.properties = properties || {};
+
+    /* Permission gate: compute canEdit before any UI is built. */
+    SFP.runtime.canEdit = resolveCanEdit(properties || {});
+
     var appCfg = SFP.config.get('app');
     var hub = SFP.data.hub;
 
@@ -70,6 +91,7 @@
 
     /* Engines */
     SFP.data.machines.init(hub);
+    SFP.data.assets.init();
     SFP.state.alarms.init(hub);
 
     /* Shell + first page */
@@ -78,9 +100,12 @@
     SFP.ui.nav.init(properties.defaultPage || appCfg.defaultPage);
 
     SFP.bus.emit('data:modeChanged', { mode: SFP.runtime.mode });
+    SFP.bus.emit('runtime:canEditChanged', { canEdit: SFP.runtime.canEdit });
 
-    /* Development aid: ?edit=1 opens the visual editor immediately. */
-    if (urlParams.get('edit') === '1') {
+    /* Development aid: ?edit=1 opens the visual editor immediately.
+     * When OMI-hosted the canEdit gate applies — a URL flag does not
+     * override the role-based permission. */
+    if (urlParams.get('edit') === '1' && SFP.runtime.canEdit) {
       SFP.runtime.editMode = true;
       SFP.bus.emit('edit:modeChanged', { on: true });
     }
@@ -105,6 +130,24 @@
       case 'dataMode':
         SFP.runtime.mode = resolveMode({ dataMode: value }, true);
         hub.setMode(SFP.runtime.mode);
+        break;
+      case 'canEdit':
+        var newCanEdit = resolveCanEdit({ canEdit: value });
+        if (newCanEdit !== SFP.runtime.canEdit) {
+          SFP.runtime.canEdit = newCanEdit;
+          /* If permission is revoked while editing, force-exit edit mode. */
+          if (!newCanEdit && SFP.runtime.editMode) {
+            SFP.runtime.editMode = false;
+            SFP.bus.emit('edit:modeChanged', { on: false });
+            /* Notify the user. Use a toast mechanism if available, else warn. */
+            if (SFP.ui && SFP.ui.toast && typeof SFP.ui.toast === 'function') {
+              SFP.ui.toast('Edit permission revoked — exited edit mode.');
+            } else {
+              console.warn('[SFP] canEdit revoked while editing — edit mode has been disabled.');
+            }
+          }
+          SFP.bus.emit('runtime:canEditChanged', { canEdit: SFP.runtime.canEdit });
+        }
         break;
       default:
         break;

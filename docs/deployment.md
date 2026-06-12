@@ -53,6 +53,86 @@ Tags the shipped config expects (with default prefix `Factory.`) are listed in
 state tags may deliver integer codes (0 idle, 1 running, 2 maintenance,
 3 error — remappable in `states.config.js`).
 
+## Permissions / edit mode
+
+### How the gate works
+
+The widget exposes a **`canEdit` property** (Boolean, default `false`). This
+property is the single control surface that the OMI engineer uses to decide
+which users or layouts may open the visual editor.
+
+At startup `src/app.js` computes `SFP.runtime.canEdit`:
+
+| Context | Value |
+|---|---|
+| Standalone (not inside an OMI host) | `true` — dev/simulation workflow unaffected |
+| OMI-hosted, `canEdit` property not set or `false` | `false` — edit locked by default |
+| OMI-hosted, `canEdit` property set to `true` | `true` — edit enabled for this user/layout |
+
+When `canEdit` is `false`:
+
+- The pencil edit button is **hidden** (not just disabled).
+- `?edit=1` URL flag is silently ignored.
+- Any programmatic call to `SFP.config.override()` is refused with a
+  `console.warn` — belt-and-braces backstop in case a race or custom script
+  tries to bypass the UI layer.
+- Both `layout-editor._activate` and `twin-editor.setActive(true)` bail out
+  immediately with `console.warn`.
+
+If `canEdit` is revoked at **runtime** (via `omi:propertyChanged`) while an
+edit session is open, the widget immediately forces edit mode off, emits
+`edit:modeChanged`, and logs a console warning. Any unsaved changes in the
+session are discarded (normal edit-mode exit behaviour).
+
+### OMI-side setup options
+
+**Option A — Role-scoped layout variants (recommended)**
+
+1. Create two variants of the pane in your OMI/System Platform layout:
+   one for *Operator* (leave `canEdit` at its default `false`), one for
+   *Engineer* (set `canEdit = true`).
+2. Assign each layout variant to the appropriate ArchestrA security role.
+   OMI loads the correct variant based on the logged-in user's role —
+   engineers see the editable layout, operators see the read-only one.
+3. No scripting required.
+
+**Option B — OMI graphic scripting**
+
+In a graphic script that fires on login or role-change, set the widget
+property programmatically:
+
+```vbscript
+' Example OMI/System Platform Galaxy script
+Dim role As String
+role = Galaxy.GetCurrentUser().PrimaryRole
+If role = "Engineer" Or role = "Supervisor" Then
+    WidgetRef.canEdit = True
+Else
+    WidgetRef.canEdit = False
+End If
+```
+
+This fires `omi:propertyChanged` which the widget handles at runtime without
+a reload.
+
+### Security caveat
+
+This is **UI-level enforcement inside the widget**. The authoritative security
+boundary is OMI's own security model:
+
+- OMI/System Platform enforces role-scoped layout visibility and property
+  bindings at the host level, before the widget ever receives a message.
+- Saved configuration overrides are written to **per-station localStorage**.
+  They affect only the local browser session and are not propagated to other
+  stations or to the package on disk.
+- Making an edit change permanent requires **Export → commit the downloaded
+  `.config.js` → repackage the CWP → redeploy**. That is a controlled
+  deployment step outside the widget's own runtime entirely.
+
+In short: `canEdit = false` prevents the widget's own editor from opening;
+OMI role security prevents the wrong layout (with `canEdit = true`) from
+being shown to unauthorized users.
+
 ## Upgrades
 
 1. Bump `version` in `manifest.json`.

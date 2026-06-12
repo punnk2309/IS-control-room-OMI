@@ -50,6 +50,14 @@
       "default": "Factory.",
       "description": "Prefix prepended to every OMI tag address in config/tags.config.js — deploy the same package against different plants/areas by changing this",
       "category": "Data"
+    },
+    {
+      "name": "canEdit",
+      "displayName": "Can Edit",
+      "type": "Boolean",
+      "default": false,
+      "description": "Allow this user/layout to enter edit mode. Bind or set per role via OMI security — e.g. expose an editable layout variant only to Engineer roles, or set via OMI scripting from the logged-in user's role. Ignored when running standalone (dev/simulation); always true in that context.",
+      "category": "Security"
     }
   ]
 }

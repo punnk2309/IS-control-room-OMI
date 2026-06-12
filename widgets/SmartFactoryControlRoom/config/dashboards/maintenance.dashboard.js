@@ -26,6 +26,18 @@ SFP.config.define('dashboard.maintenance', {
         },
       } },
 
+    { type: 'gantt-chart', layout: { span: 12, minH: 280 },
+      options: {
+        title: 'Assembly Line A — Machine States',
+        subtitle: 'Live state timeline per machine · 1 h window',
+        icon: 'layout',
+        asset: '0017-NIF-LIN01',
+        window: 3600,
+        stateGroup: 'machine',
+        rowHeight: 24,
+        maxRows: 30,
+      } },
+
     { type: 'data-table', layout: { span: 12 },
       bind: { dataset: 'maintenance.workorders' },
       options: {

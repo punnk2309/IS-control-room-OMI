@@ -53,6 +53,8 @@
     this.machines = deps.machines;      // machine registry (error counts)
     this.theme = deps.theme;
     this.cfg = SFP.config.get('twin');
+    /* requestRender is set by the widget after construction (twin-frame loop). */
+    this.requestRender = deps.requestRender || function () {};
 
     this.colors = {};
     this.dpr = window.devicePixelRatio || 1;
@@ -86,6 +88,44 @@
     if (!m) { return hex; }
     return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' +
       parseInt(m[3], 16) + ',' + a + ')';
+  };
+
+  /* ── Image helper ──────────────────────────────────────────────────────── */
+
+  /**
+   * _drawElementImage(ctx, el, r)
+   * If el has an `image` config object ({ src, fit }), draw it clipped to r.
+   * Returns true when an image was drawn (so the caller can skip the plain fill
+   * but must still draw the border, status tint, and labels on top).
+   * Returns false when there is no image, image is still loading, or broken.
+   *
+   * A broken-image warning glyph is drawn at the top-right corner of r so the
+   * operator can see that an image was configured but failed to load.
+   */
+  TwinRenderer.prototype._drawElementImage = function (ctx, el, r) {
+    var img = el.image;
+    if (!img || !img.src) { return false; }
+    var self = this;
+    var drawn = SFP.twin.imageCache.drawImage(
+      ctx, img.src, r, img.fit || 'stretch',
+      function () { self.requestRender(); }
+    );
+    if (drawn) { return true; }
+
+    /* false means broken — draw a small warning glyph. */
+    if (SFP.twin.imageCache.get(img.src, null) === false) {
+      var z = this.camera.zoom;
+      ctx.save();
+      ctx.fillStyle = this.colors['twin-nodata'] || '#f59e0b';
+      ctx.font = '600 ' + (10 / z) + 'px "Segoe UI", system-ui, sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'right';
+      ctx.fillText('⚠ img', r.x + r.w - 4 / z, r.y + 4 / z);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+    /* null = still loading — nothing extra to draw; re-render will fire. */
+    return false;
   };
 
   /* ── Frame ─────────────────────────────────────────────────────────────── */
@@ -178,10 +218,30 @@
       var shapePath = zone.poly
         ? function () { self._tracePoly(ctx, zone.poly); }
         : function () { self._roundRect(ctx, r, 6); };
+
+      /* 1. Base fill (always — gives a background when image is transparent). */
       ctx.fillStyle = self.colors['twin-zone-fill'];
       shapePath();
       ctx.fill();
+
+      /* 2. Image (if configured) — drawn after base fill, before tint/border.
+       *    Element-level image first; if the active floor also has an image it
+       *    composites on top (floor images are per-floor floorplan overlays).
+       *    For polygon zones we use rect-clip (polygon clip is deferred). */
+      self._drawElementImage(ctx, zone, r);
+      if (zone.floors) {
+        var activeFloorId = self.store.activeFloor(zone);
+        var activeFloor = null;
+        zone.floors.forEach(function (f) { if (f.id === activeFloorId) { activeFloor = f; } });
+        if (activeFloor && activeFloor.image) {
+          self._drawElementImage(ctx, activeFloor, r);
+        }
+      }
+
+      /* 3. Status tint as translucent overlay so state colors read through. */
       if (tint) { ctx.fillStyle = tint; shapePath(); ctx.fill(); }
+
+      /* 4. Border. */
       ctx.strokeStyle = statusColor ? self.alpha(statusColor, 0.7) : self.colors['twin-zone-border'];
       ctx.lineWidth = 1.5 / z;
       shapePath();
@@ -243,9 +303,24 @@
       var r = el.rect;
 
       ctx.globalAlpha = alpha;
+
+      /* 1. Base fill. */
       ctx.fillStyle = self.colors['twin-subzone-fill'];
       self._roundRect(ctx, r, 4);
       ctx.fill();
+
+      /* 2. Image (if configured) — element-level then active-floor overlay. */
+      self._drawElementImage(ctx, el, r);
+      if (el.floors) {
+        var activeSubFloorId = self.store.activeFloor(el);
+        var activeSubFloor = null;
+        el.floors.forEach(function (f) { if (f.id === activeSubFloorId) { activeSubFloor = f; } });
+        if (activeSubFloor && activeSubFloor.image) {
+          self._drawElementImage(ctx, activeSubFloor, r);
+        }
+      }
+
+      /* 3. Border. */
       ctx.strokeStyle = self.colors['twin-subzone-border'];
       ctx.lineWidth = 1 / z;
       self._roundRect(ctx, r, 4);
@@ -301,13 +376,26 @@
       ctx.lineWidth = 1.5 / z;
       if (noData) { ctx.setLineDash([4 / z, 3 / z]); }
 
+      /* 1. Base shape fill. */
       if (el.shape === 'circle') {
         var cx = r.x + r.w / 2, cy = r.y + r.h / 2, rad = Math.min(r.w, r.h) / 2;
         ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
+        ctx.fill();
       } else {
         self._roundRect(ctx, r, el.shape === 'round' ? r.h / 2 : 3);
-        ctx.fill(); ctx.stroke();
+        ctx.fill();
+      }
+
+      /* 2. Image (if configured) — always rect-clipped for simplicity. */
+      self._drawElementImage(ctx, el, r);
+
+      /* 3. Border (drawn on top of image). */
+      if (el.shape === 'circle') {
+        ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        self._roundRect(ctx, r, el.shape === 'round' ? r.h / 2 : 3);
+        ctx.stroke();
       }
       ctx.setLineDash([]);
 

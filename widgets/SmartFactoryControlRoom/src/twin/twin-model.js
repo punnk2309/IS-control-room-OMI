@@ -107,6 +107,7 @@
           machineRef: machineRef,
           bindings: bindings,
           style: cfg.style || null,
+          image: cfg.image || null,
         });
       }
 
@@ -120,10 +121,11 @@
           rect: rect, parentId: zone.id, zoneId: zone.id,
           gates: gates,
           floors: cfg.floors
-            ? cfg.floors.map(function (f) { return { id: f.id, label: f.label }; })
+            ? cfg.floors.map(function (f) { return { id: f.id, label: f.label, image: f.image || null }; })
             : null,
           machineIds: [],
           style: cfg.style || null,
+          image: cfg.image || null,
         });
 
         var floorDefs = cfg.floors || [{ id: 'main', machines: cfg.machines || [] }];
@@ -158,12 +160,13 @@
           parentId: null, zoneId: cfg.id,
           gates: [],
           floors: cfg.floors
-            ? cfg.floors.map(function (f) { return { id: f.id, label: f.label }; })
+            ? cfg.floors.map(function (f) { return { id: f.id, label: f.label, image: f.image || null }; })
             : null,
           hint: cfg.hint || null,
           statusBinding: cfg.status ? cfg.status.datapoint : null,
           subzoneIds: [],
           style: cfg.style || null,
+          image: cfg.image || null,
         });
         model.zones.push(zone);
 

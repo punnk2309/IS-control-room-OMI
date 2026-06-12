@@ -119,6 +119,11 @@
 
   Editor.prototype.setActive = function (on) {
     if (on === this.active) { return; }
+    /* Permission gate — belt-and-braces check before activating edit chrome. */
+    if (on && !SFP.runtime.canEdit) {
+      console.warn('[SFP.twin.Editor] Activation blocked — canEdit is false.');
+      return;
+    }
     this.active = on;
     if (on) {
       this.session = { baseline: this._snap(), undo: [], dirty: false };
@@ -1237,6 +1242,9 @@
           onclick: function () { self._deleteSelected(); } }),
       ]));
 
+      // ── Image section ─────────────────────────────────────────────────
+      self._renderImageProps(box, el);
+
       // ── Connections section for this element ──────────────────────────
       var elConns = SFP.twin.model.connectionsFor(this.model, el.id);
       if (elConns.length > 0) {
@@ -1266,6 +1274,97 @@
     }
 
     this._appendConfigSection(box);
+  };
+
+  /* ── Image properties (element image upload/remove/fit) ────────────────── */
+
+  /**
+   * Render the "Image" section inside the properties panel for a selected
+   * element (zone, subzone, or machine).  Follows the same row/chip pattern
+   * as the rest of the panel.
+   *
+   * Sets el.image = { src, fit } via _setProp so it travels through the normal
+   * undo stack and save flow.
+   */
+  Editor.prototype._renderImageProps = function (box, el) {
+    var dom = SFP.dom, self = this;
+    var SIZE_WARN_BYTES = 500 * 1024;   // 500 KB threshold
+
+    box.appendChild(dom.el('div', { class: 'twin-palette-title', text: 'Image' }));
+
+    var currentImg = el.image || {};
+
+    /* Hidden file input — triggered by the "Set image…" button below. */
+    var fileInput = dom.el('input', {
+      type: 'file',
+      accept: 'image/png,image/jpeg,image/svg+xml',
+      style: 'display:none',
+    });
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) { return; }
+      if (file.size > SIZE_WARN_BYTES) {
+        console.warn('[SFP.twin.editor] Image "' + file.name + '" is ' +
+          Math.round(file.size / 1024) + ' KB — exceeds the 500 KB guidance. ' +
+          'Large data URIs inflate localStorage (quota ~5 MB) and the exported config.');
+        self._toast('Warning: image is ' + Math.round(file.size / 1024) +
+          ' KB — may hit localStorage quota');
+      }
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        var src = ev.target.result;
+        var fit = (el.image && el.image.fit) || 'stretch';
+        /* Evict old cache entry so the new image loads immediately. */
+        if (el.image && el.image.src) { SFP.twin.imageCache.evict(el.image.src); }
+        self._setProp(el, 'image', { src: src, fit: fit });
+      };
+      reader.readAsDataURL(file);
+      /* Reset so the same file can be re-selected after removal. */
+      fileInput.value = '';
+    });
+    box.appendChild(fileInput);
+
+    /* "Set image…" button — opens the file picker. */
+    box.appendChild(dom.el('button', { class: 'twin-chip',
+      onclick: function () { fileInput.click(); } },
+      [SFP.icons.el('plus', 12), currentImg.src ? 'Replace image…' : 'Set image…']));
+
+    /* Fit mode selector — only shown when an image is set. */
+    if (currentImg.src) {
+      var FIT_MODES = ['stretch', 'contain', 'cover'];
+      var fitSel = dom.el('select', { onchange: function (e) {
+        var newFit = e.target.value;
+        self._setProp(el, 'image', { src: (el.image && el.image.src) || '', fit: newFit });
+      } }, FIT_MODES.map(function (m) {
+        var opt = dom.el('option', { value: m, text: m });
+        if ((currentImg.fit || 'stretch') === m) { opt.selected = true; }
+        return opt;
+      }));
+      box.appendChild(dom.el('label', { class: 'twin-prop-row' }, ['Fit', fitSel]));
+
+      /* Image source summary (first 60 chars). */
+      var srcPreview = currentImg.src.substring(0, 60) + (currentImg.src.length > 60 ? '…' : '');
+      box.appendChild(dom.el('div', { class: 'twin-prop-row',
+        style: 'font-size:10px;color:var(--sfp-label-dim,#999);word-break:break-all;',
+        text: srcPreview }));
+
+      /* Size warning note if large. */
+      var sizeEst = Math.round(currentImg.src.length * 0.75 / 1024);
+      if (sizeEst > 500) {
+        box.appendChild(dom.el('div', {
+          style: 'font-size:10px;color:var(--sfp-alarm,#ef4444);padding:2px 0;',
+          text: '⚠ ~' + sizeEst + ' KB — may approach localStorage quota',
+        }));
+      }
+
+      /* "Remove image" button. */
+      box.appendChild(dom.el('button', { class: 'twin-chip',
+        onclick: function () {
+          if (el.image && el.image.src) { SFP.twin.imageCache.evict(el.image.src); }
+          self._setProp(el, 'image', null);
+        } },
+        [SFP.icons.el('minus', 12), 'Remove image']));
+    }
   };
 
   /** Append the Config / export section (shared between element and connection props). */

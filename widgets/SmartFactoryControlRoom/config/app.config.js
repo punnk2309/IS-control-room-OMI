@@ -29,10 +29,11 @@ SFP.config.define('app', {
   data: {
     /* Simulation tick period (demo mode and unbound-datapoint fallback). */
     simulationIntervalMs: 2000,
-    /* In live mode, datapoints without a live source binding render as
-     * unavailable (blank) on EVERY dashboard, so nothing synthetic can be
-     * mistaken for plant data. Set true to fall back to simulation values
-     * marked with quality 'Simulated' instead. */
+    /* In live mode, datapoints without a live source binding publish
+     * null / quality 'Bad' and their widgets show a "NO DATA" overlay so
+     * engineers can see exactly which visuals still need live tags bound.
+     * Set true to fall back to simulation values marked 'Simulated' instead
+     * (the overlay is not shown in that case). */
     simulateUnboundInLive: false,
   },
 });
