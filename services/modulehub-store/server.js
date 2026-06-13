@@ -14,7 +14,10 @@ const VERSION = '0.1.0';
 
 // ─── config ─────────────────────────────────────────────────────────────────
 
-const CFG_PATH = path.join(__dirname, process.env.MHS_CONFIG || 'config.json');
+const _cfgEnv = process.env.MHS_CONFIG;
+const CFG_PATH = _cfgEnv
+  ? (path.isAbsolute(_cfgEnv) ? _cfgEnv : path.join(__dirname, _cfgEnv))
+  : path.join(__dirname, 'config.json');
 let cfg = {
   port:       8743,
   bind:       '0.0.0.0',

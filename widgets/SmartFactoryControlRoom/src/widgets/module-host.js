@@ -2,11 +2,18 @@
  * Widget: module-host — embeds a ModuleHub module served from modulehub-store
  * ----------------------------------------------------------------------------
  * options: {
- *   moduleId:  string  (required) — module id in the library
- *   storeUrl:  string  (required) — base URL of modulehub-store, e.g. 'http://localhost:8743'
- *   storeKey?: string  (optional) — value for X-Api-Key header
- *   tagMap?:   object  (optional) — map of module tag names → control-room datapoint ids
+ *   moduleId?:   string — pin one module full-area. If omitted, a switcher bar
+ *                         lets the user pick/swap among available modules.
+ *   staticBase?: string — base for module RESOURCES (module.json, SDK, code),
+ *                         offline/same-origin, e.g. 'module-bundles'. Switcher
+ *                         lists from `${staticBase}/index.json`.
+ *   storeUrl?:   string — modulehub-store base, e.g. 'http://localhost:8743'.
+ *                         Used for persistence and to list service-published
+ *                         modules. At least one of staticBase/storeUrl required.
+ *   storeKey?:   string — value for X-Api-Key header.
+ *   tagMap?:     object — map of module tag names → control-room datapoint ids.
  * }
+ * Without storeUrl, store ops are in-session in-memory no-ops (visual still works).
  *
  * Contract: docs/plans/modulehub-contracts.md §12 (binding), §4, §5, §7, §11.1
  * ========================================================================== */
@@ -257,6 +264,181 @@
     root.appendChild(card);
   }
 
+  /* ── Render module picker (no moduleId; storeUrl IS set) ─────────────────── */
+
+  function showPicker(root, base, storeKey, onLoad) {
+    var theme = SFP.ui.theme;
+    var dom = SFP.dom;
+    dom.clear(root);
+
+    /* Outer wrapper — fills the widget cell */
+    var wrap = dom.el('div', {
+      class: 'card module-host-picker',
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        padding: '18px',
+        background: theme.color('bg-card'),
+        border: '1px solid ' + theme.color('border'),
+        borderRadius: '8px',
+        color: theme.color('text-1'),
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
+        fontSize: '13px',
+        minHeight: '80px',
+      },
+    });
+
+    /* Heading row */
+    var headingRow = dom.el('div', {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+      },
+    });
+
+    var heading = dom.el('div', {
+      style: {
+        fontWeight: '600',
+        fontSize: '14px',
+        color: theme.color('text-1'),
+      },
+    });
+    heading.textContent = 'Select a module';
+
+    /* Refresh button */
+    var refreshBtn = dom.el('button', {
+      title: 'Refresh module list',
+      style: {
+        background: 'none',
+        border: '1px solid ' + theme.color('border'),
+        borderRadius: '4px',
+        color: theme.color('text-2'),
+        cursor: 'pointer',
+        fontSize: '12px',
+        padding: '2px 7px',
+        lineHeight: '1.5',
+      },
+    });
+    refreshBtn.textContent = '↻ Refresh';
+
+    headingRow.appendChild(heading);
+    headingRow.appendChild(refreshBtn);
+
+    /* Select element */
+    var select = dom.el('select', {
+      style: {
+        background: theme.color('bg-surface'),
+        border: '1px solid ' + theme.color('border-strong'),
+        borderRadius: '4px',
+        color: theme.color('text-1'),
+        fontSize: '13px',
+        padding: '4px 8px',
+        width: '100%',
+        cursor: 'pointer',
+      },
+    });
+
+    /* Error line */
+    var errorLine = dom.el('div', {
+      style: {
+        fontSize: '12px',
+        color: theme.color('alarm'),
+        minHeight: '16px',
+      },
+    });
+
+    /* Load button */
+    var loadBtn = dom.el('button', {
+      style: {
+        background: theme.color('accent'),
+        border: 'none',
+        borderRadius: '4px',
+        color: '#ffffff',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600',
+        padding: '6px 16px',
+        alignSelf: 'flex-start',
+      },
+    });
+    loadBtn.textContent = 'Load';
+
+    wrap.appendChild(headingRow);
+    wrap.appendChild(select);
+    wrap.appendChild(errorLine);
+    wrap.appendChild(loadBtn);
+    root.appendChild(wrap);
+
+    /* ── Populate select from GET /modules ───────────────────────────────── */
+    function populate() {
+      select.innerHTML = '';
+      errorLine.textContent = '';
+      loadBtn.disabled = true;
+
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Loading…';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      select.appendChild(placeholder);
+
+      fetchJsonWithKey(base + '/modules', storeKey).then(function (list) {
+        select.innerHTML = '';
+        if (!Array.isArray(list) || list.length === 0) {
+          errorLine.textContent = 'No modules published to ' + base;
+          var none = document.createElement('option');
+          none.value = '';
+          none.disabled = true;
+          none.selected = true;
+          none.textContent = '(none)';
+          select.appendChild(none);
+          return;
+        }
+        /* Blank prompt option */
+        var prompt = document.createElement('option');
+        prompt.value = '';
+        prompt.disabled = true;
+        prompt.selected = true;
+        prompt.textContent = '— choose a module —';
+        select.appendChild(prompt);
+
+        list.forEach(function (entry) {
+          var opt = document.createElement('option');
+          opt.value = entry.id;
+          opt.textContent = entry.name + ' (' + entry.id + ') v' + entry.version;
+          select.appendChild(opt);
+        });
+
+        loadBtn.disabled = false;
+      }).catch(function (err) {
+        select.innerHTML = '';
+        var none = document.createElement('option');
+        none.value = '';
+        none.disabled = true;
+        none.selected = true;
+        none.textContent = '(error)';
+        select.appendChild(none);
+        errorLine.textContent = 'Failed to load module list: ' + (err && err.message ? err.message : String(err));
+      });
+    }
+
+    populate();
+
+    refreshBtn.addEventListener('click', function () { populate(); });
+
+    loadBtn.addEventListener('click', function () {
+      var chosen = select.value;
+      if (!chosen) {
+        errorLine.textContent = 'Please select a module first.';
+        return;
+      }
+      onLoad(chosen);
+    });
+  }
+
   /* ══════════════════════════════════════════════════════════════════════════
    * Widget registration
    * ══════════════════════════════════════════════════════════════════════════ */
@@ -264,22 +446,36 @@
   SFP.widgets.register('module-host', {
     create: function (ctx) {
       var o = ctx.options;
-      var moduleId = o.moduleId;
-      var storeUrl = o.storeUrl;
-      var storeKey = o.storeKey || '';
-      var tagMap   = o.tagMap || {};
+      var moduleId   = o.moduleId;
+      var storeUrl   = o.storeUrl   ? o.storeUrl.replace(/\/$/, '')   : '';
+      var staticBase = o.staticBase ? o.staticBase.replace(/\/$/, '') : '';
+      var storeKey   = o.storeKey || '';
+      var tagMap     = o.tagMap || {};
 
-      /* ── Validate required options ─────────────────────────────────────── */
-      if (!storeUrl) {
-        showError(ctx.root, 'Missing storeUrl', 'options.storeUrl is required');
+      /*
+       * Two independent concerns:
+       *   resBase  — where module RESOURCES (module.json, SDK, code) load from.
+       *              Prefer staticBase (works offline / same-origin, no service);
+       *              fall back to the service.
+       *   storeUrl — where PERSISTENCE (tx/kv) goes. Optional: when absent, store
+       *              ops are in-session in-memory no-ops so a bundled module still
+       *              renders and works without any backend.
+       */
+      var resBase = staticBase || storeUrl;
+
+      /* ── Validate options ──────────────────────────────────────────────── */
+      if (moduleId && !resBase) {
+        showError(ctx.root, 'No module source',
+          'Set options.staticBase (offline) or options.storeUrl (service) to load "' + moduleId + '"');
         return { destroy: function () {} };
       }
-      if (!moduleId) {
-        showError(ctx.root, 'Missing moduleId', 'options.moduleId is required');
+      if (!moduleId && !resBase) {
+        showError(ctx.root, 'No module source',
+          'Provide options.staticBase (offline switcher) or options.storeUrl (library) to pick a module');
         return { destroy: function () {} };
       }
 
-      var base = storeUrl.replace(/\/$/, '');
+      var base = storeUrl;   /* store ops + picker target */
       var iframe = null;
       var _disposed = false;
       var _messageListener = null;
@@ -289,293 +485,457 @@
       /* Map module tag → dp id (resolved at subscription time) */
       var _tagToDp = {};
 
-      /* ── §11.1 parallel fetches with 5s timeouts ───────────────────────── */
-      var manifestUrl = base + '/modules/' + moduleId + '/module.json';
-      var sdkBase     = base + '/sdk/';
+      /*
+       * Store dispatch. With a storeUrl → real REST (§7). Without one → an
+       * in-session in-memory store so a bundled module renders and works
+       * (state is not persisted across reloads — that needs the service).
+       */
+      var _memKv = {};
+      var _memTxId = 0;
+      function runStoreOp(op, payload) {
+        if (storeUrl) { return storeOp(op, payload, storeUrl, storeKey); }
+        var k;
+        switch (op) {
+          case 'status':   return Promise.resolve('local');
+          case 'kv.get':   k = payload.ns + '::' + payload.key;
+                           return Promise.resolve(_memKv[k] !== undefined ? _memKv[k] : null);
+          case 'kv.put':   _memKv[payload.ns + '::' + payload.key] = payload.value;
+                           return Promise.resolve({ ok: true });
+          case 'tx.add':   _memTxId += 1; return Promise.resolve({ id: _memTxId });
+          case 'tx.query': return Promise.resolve([]);
+          default:         return Promise.reject(new Error('unknown store op: ' + op));
+        }
+      }
 
-      Promise.all([
-        fetchJsonWithKey(manifestUrl, storeKey),
-        fetchTextWithKey(sdkBase + 'sdk-bootstrap.js', storeKey),
-        fetchTextWithKey(sdkBase + 'sdk-data.js', storeKey),
-        fetchTextWithKey(sdkBase + 'sdk-ui.js', storeKey),
-        fetchTextWithKey(sdkBase + 'sdk-assets.js', storeKey),
-      ]).then(function (results) {
-        if (_disposed) { return; }
+      /*
+       * Where the active module iframe mounts. In switcher mode this is the
+       * content area below the switcher bar; in pinned mode it is ctx.root.
+       */
+      var _contentEl = ctx.root;
+      var _busWired  = false;   /* theme/mode bus handlers wired once, not per-switch */
 
-        var manifest   = results[0];
-        var sdkTexts   = {
-          bootstrap: results[1],
-          data:      results[2],
-          ui:        results[3],
-          assets:    results[4],
-        };
+      /* Tear down the currently-running module (used on switch + destroy). */
+      function teardownCurrent() {
+        if (iframe && iframe.contentWindow) {
+          try { iframe.contentWindow.postMessage({ mh: 1, type: 'mh:destroy' }, '*'); } catch (e) { /* ignore */ }
+        }
+        if (_messageListener) {
+          window.removeEventListener('message', _messageListener);
+          _messageListener = null;
+        }
+        Object.keys(_tagUnsubs).forEach(function (dp) {
+          try { _tagUnsubs[dp](); } catch (e) { /* ignore */ }
+        });
+        _tagUnsubs = {};
+        _tagToDp = {};
+        if (iframe && iframe.parentNode) { iframe.parentNode.removeChild(iframe); }
+        iframe = null;
+      }
 
-        /* Validate manifest */
-        if (!manifest || !manifest.id || !manifest.entry) {
-          showError(ctx.root, 'Invalid manifest', 'module.json missing required fields (id, entry)');
-          return;
+      /* ── Internal: boot a module by id — wraps the §11.1 fetch + §4/§5 iframe setup ── */
+      function bootModule(id) {
+        teardownCurrent();   /* dispose any previously-running module (switch) */
+        var sdkBase     = resBase + '/sdk/';
+        var manifestUrl = resBase + '/modules/' + id + '/module.json';
+
+        /* Resource source: inlined bundle (no fetch — file:// safe) when present
+           and not using a service; otherwise fetch from staticBase/storeUrl. */
+        var B = (!storeUrl && typeof window !== 'undefined') ? window.SFP_MODULE_BUNDLES : null;
+        var inlineMod = (B && B.modules) ? B.modules[id] : null;
+        function getManifest() {
+          return inlineMod ? Promise.resolve(inlineMod.manifest) : fetchJsonWithKey(manifestUrl, storeKey);
+        }
+        function getSdk(name) {
+          return (B && B.sdk && B.sdk[name] != null) ? Promise.resolve(B.sdk[name]) : fetchTextWithKey(sdkBase + name, storeKey);
+        }
+        function getEntry(manifest) {
+          return inlineMod ? Promise.resolve(inlineMod.files[manifest.entry])
+                           : fetchTextWithKey(resBase + '/modules/' + manifest.id + '/' + manifest.entry, storeKey);
         }
 
-        /* Fetch module entry file (§11.1: GET /modules/:id/:file) */
-        var entryUrl = base + '/modules/' + manifest.id + '/' + manifest.entry;
-        return fetchTextWithKey(entryUrl, storeKey).then(function (moduleCode) {
+        Promise.all([
+          getManifest(),
+          getSdk('sdk-bootstrap.js'),
+          getSdk('sdk-data.js'),
+          getSdk('sdk-ui.js'),
+          getSdk('sdk-assets.js'),
+        ]).then(function (results) {
           if (_disposed) { return; }
 
-          if (!moduleCode) {
-            showError(ctx.root, 'Empty module entry', 'Entry file returned empty content: ' + entryUrl);
+          var manifest   = results[0];
+          var sdkTexts   = {
+            bootstrap: results[1],
+            data:      results[2],
+            ui:        results[3],
+            assets:    results[4],
+          };
+
+          /* Validate manifest */
+          if (!manifest || !manifest.id || !manifest.entry) {
+            showError(_contentEl, 'Invalid manifest', 'module.json missing required fields (id, entry)');
             return;
           }
 
-          /* ── Build permissions ──────────────────────────────────────────── */
-          var permissions = (manifest && manifest.permissions) || { tags: [], store: [] };
-          var allowTag    = buildTagChecker(permissions.tags || []);
-          var allowedNs   = permissions.store || [];
-
-          /* ── Build + attach iframe (§4) ─────────────────────────────────── */
-          iframe = document.createElement('iframe');
-          iframe.setAttribute('sandbox', 'allow-scripts');
-          iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:transparent;min-height:100%;';
-
-          /* Build srcdoc: bootstrap, data, ui, assets, module code */
-          iframe.srcdoc = buildSrcdoc(sdkTexts, moduleCode);
-
-          /* ── Host bridge (§5) ───────────────────────────────────────────── */
-          var _helloReceived = false;
-
-          function postToModule(msg) {
+          /* Module entry code — inlined bundle or §11.1 GET /modules/:id/:file */
+          var entryUrl = resBase + '/modules/' + manifest.id + '/' + manifest.entry;
+          return getEntry(manifest).then(function (moduleCode) {
             if (_disposed) { return; }
-            var win = iframe && iframe.contentWindow;
-            if (!win) { return; }
-            try {
-              win.postMessage(Object.assign({ mh: 1 }, msg), '*');
-            } catch (e) {
-              console.warn('[module-host:' + moduleId + '] postMessage failed:', e);
+
+            if (!moduleCode) {
+              showError(_contentEl, 'Empty module entry', 'Entry file returned empty content: ' + entryUrl);
+              return;
             }
-          }
 
-          function resultMsg(reqId, ok, dataOrError) {
-            var msg = { type: 'mh:result', reqId: reqId };
-            if (ok) {
-              msg.ok   = true;
-              msg.data = dataOrError;
-            } else {
-              msg.ok    = false;
-              msg.error = dataOrError;
+            /* ── Build permissions ──────────────────────────────────────────── */
+            var permissions = (manifest && manifest.permissions) || { tags: [], store: [] };
+            var allowTag    = buildTagChecker(permissions.tags || []);
+            var allowedNs   = permissions.store || [];
+
+            /* ── Build + attach iframe (§4) ─────────────────────────────────── */
+            iframe = document.createElement('iframe');
+            iframe.setAttribute('sandbox', 'allow-scripts');
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:transparent;min-height:100%;';
+
+            /* Build srcdoc: bootstrap, data, ui, assets, module code */
+            iframe.srcdoc = buildSrcdoc(sdkTexts, moduleCode);
+
+            /* ── Host bridge (§5) ───────────────────────────────────────────── */
+            var _helloReceived = false;
+
+            function postToModule(msg) {
+              if (_disposed) { return; }
+              var win = iframe && iframe.contentWindow;
+              if (!win) { return; }
+              try {
+                win.postMessage(Object.assign({ mh: 1 }, msg), '*');
+              } catch (e) {
+                console.warn('[module-host:' + id + '] postMessage failed:', e);
+              }
             }
-            postToModule(msg);
-          }
 
-          _messageListener = function (event) {
-            if (_disposed) { return; }
-            /* §5: validate source is this iframe */
-            if (!iframe || event.source !== iframe.contentWindow) { return; }
-            var d = event.data;
-            if (!d || d.mh !== 1) { return; }
+            function resultMsg(reqId, ok, dataOrError) {
+              var msg = { type: 'mh:result', reqId: reqId };
+              if (ok) {
+                msg.ok   = true;
+                msg.data = dataOrError;
+              } else {
+                msg.ok    = false;
+                msg.error = dataOrError;
+              }
+              postToModule(msg);
+            }
 
-            switch (d.type) {
+            _messageListener = function (event) {
+              if (_disposed) { return; }
+              /* §5: validate source is this iframe */
+              if (!iframe || event.source !== iframe.contentWindow) { return; }
+              var d = event.data;
+              if (!d || d.mh !== 1) { return; }
 
-              /* ── mh:hello → mh:init ─────────────────────────────────────── */
-              case 'mh:hello':
-                if (!_helloReceived) {
-                  _helloReceived = true;
+              switch (d.type) {
 
-                  /* Build asset tree: SFP.data.assets.tree() or null */
-                  var assetTree = null;
-                  try {
-                    if (SFP.data.assets && typeof SFP.data.assets.tree === 'function') {
-                      assetTree = SFP.data.assets.tree();
-                    }
-                  } catch (e) { /* best-effort */ }
+                /* ── mh:hello → mh:init ─────────────────────────────────────── */
+                case 'mh:hello':
+                  if (!_helloReceived) {
+                    _helloReceived = true;
 
-                  /* §12 mh:init payload */
-                  postToModule({
-                    type:       'mh:init',
-                    moduleId:   moduleId,
-                    manifest:   manifest,
-                    config:     manifest.config || {},
-                    theme:      { tokens: harvestTokens() },
-                    simulation: (SFP.data.hub.mode === 'simulation'),
-                    sdkVersion: SDK_VERSION,
-                    assets:     assetTree,
-                  });
-                }
-                break;
+                    /* Build asset tree: SFP.data.assets.tree() or null */
+                    var assetTree = null;
+                    try {
+                      if (SFP.data.assets && typeof SFP.data.assets.tree === 'function') {
+                        assetTree = SFP.data.assets.tree();
+                      }
+                    } catch (e) { /* best-effort */ }
 
-              /* ── mh:subscribe ────────────────────────────────────────────── */
-              case 'mh:subscribe':
-                if (!allowTag(d.tag)) {
-                  resultMsg(d.reqId, false, 'permission-denied: tag ' + d.tag);
-                  return;
-                }
-                (function (moduleTag, reqId) {
-                  /* tagMap remap → dp id */
-                  var dp = (tagMap && tagMap[moduleTag]) ? tagMap[moduleTag] : moduleTag;
-                  _tagToDp[moduleTag] = dp;
-
-                  /* Define dp in hub if not already defined */
-                  if (!SFP.data.hub.def(dp)) {
-                    SFP.data.hub.define(dp, {
-                      label:  moduleTag,
-                      source: { type: 'omi', address: moduleTag },
-                      sim:    defaultSimDef(moduleTag),
-                    });
-                  }
-
-                  /* Subscribe via ctx.subscribe (auto-released on widget destroy) */
-                  var unsub = ctx.subscribe(dp, function (sample) {
+                    /* §12 mh:init payload */
                     postToModule({
-                      type:    'mh:tagValue',
-                      tag:     moduleTag,
-                      value:   sample.value,
-                      quality: sample.quality,
-                      ts:      sample.ts || Date.now(),
+                      type:       'mh:init',
+                      moduleId:   id,
+                      manifest:   manifest,
+                      config:     manifest.config || {},
+                      theme:      { tokens: harvestTokens() },
+                      simulation: (SFP.data.hub.mode === 'simulation'),
+                      sdkVersion: SDK_VERSION,
+                      assets:     assetTree,
                     });
-                  });
-                  _tagUnsubs[dp] = unsub;
-
-                  resultMsg(reqId, true, null);
-                }(d.tag, d.reqId));
-                break;
-
-              /* ── mh:unsubscribe ──────────────────────────────────────────── */
-              case 'mh:unsubscribe':
-                (function (moduleTag) {
-                  var dp = _tagToDp[moduleTag] || moduleTag;
-                  if (_tagUnsubs[dp]) {
-                    try { _tagUnsubs[dp](); } catch (e) { /* ignore */ }
-                    delete _tagUnsubs[dp];
                   }
-                  delete _tagToDp[moduleTag];
-                }(d.tag));
-                break;
+                  break;
 
-              /* ── mh:writeTag ─────────────────────────────────────────────── */
-              case 'mh:writeTag':
-                if (!allowTag(d.tag)) {
-                  resultMsg(d.reqId, false, 'permission-denied: tag ' + d.tag);
-                  return;
-                }
-                try {
-                  SFP.data.omiSource.writeTag(d.tag, d.value);
-                  resultMsg(d.reqId, true, null);
-                } catch (e) {
-                  resultMsg(d.reqId, false, String(e && e.message || e));
-                }
-                break;
-
-              /* ── mh:store ────────────────────────────────────────────────── */
-              case 'mh:store':
-                (function (reqId, op, payload) {
-                  /* Op whitelist (§11.2 — modules can't use mod.*) */
-                  if (!ALLOWED_OPS[op]) {
-                    resultMsg(reqId, false, 'permission-denied: op ' + op);
+                /* ── mh:subscribe ────────────────────────────────────────────── */
+                case 'mh:subscribe':
+                  if (!allowTag(d.tag)) {
+                    resultMsg(d.reqId, false, 'permission-denied: tag ' + d.tag);
                     return;
                   }
+                  (function (moduleTag, reqId) {
+                    /* tagMap remap → dp id */
+                    var dp = (tagMap && tagMap[moduleTag]) ? tagMap[moduleTag] : moduleTag;
+                    _tagToDp[moduleTag] = dp;
 
-                  /* status op — no ns check needed */
-                  if (op === 'status') {
-                    resultMsg(reqId, true, 'service');
+                    /* Define dp in hub if not already defined */
+                    if (!SFP.data.hub.def(dp)) {
+                      SFP.data.hub.define(dp, {
+                        label:  moduleTag,
+                        source: { type: 'omi', address: moduleTag },
+                        sim:    defaultSimDef(moduleTag),
+                      });
+                    }
+
+                    /* Subscribe via ctx.subscribe (auto-released on widget destroy) */
+                    var unsub = ctx.subscribe(dp, function (sample) {
+                      postToModule({
+                        type:    'mh:tagValue',
+                        tag:     moduleTag,
+                        value:   sample.value,
+                        quality: sample.quality,
+                        ts:      sample.ts || Date.now(),
+                      });
+                    });
+                    _tagUnsubs[dp] = unsub;
+
+                    resultMsg(reqId, true, null);
+                  }(d.tag, d.reqId));
+                  break;
+
+                /* ── mh:unsubscribe ──────────────────────────────────────────── */
+                case 'mh:unsubscribe':
+                  (function (moduleTag) {
+                    var dp = _tagToDp[moduleTag] || moduleTag;
+                    if (_tagUnsubs[dp]) {
+                      try { _tagUnsubs[dp](); } catch (e) { /* ignore */ }
+                      delete _tagUnsubs[dp];
+                    }
+                    delete _tagToDp[moduleTag];
+                  }(d.tag));
+                  break;
+
+                /* ── mh:writeTag ─────────────────────────────────────────────── */
+                case 'mh:writeTag':
+                  if (!allowTag(d.tag)) {
+                    resultMsg(d.reqId, false, 'permission-denied: tag ' + d.tag);
                     return;
                   }
-
-                  /* Namespace permission check */
-                  var ns = payload && payload.ns;
-                  if (ns && allowedNs.indexOf(ns) === -1) {
-                    resultMsg(reqId, false, 'permission-denied: store ns ' + ns);
-                    return;
+                  try {
+                    SFP.data.omiSource.writeTag(d.tag, d.value);
+                    resultMsg(d.reqId, true, null);
+                  } catch (e) {
+                    resultMsg(d.reqId, false, String(e && e.message || e));
                   }
+                  break;
 
-                  /* Direct REST (§12: no IndexedDB fallback — reject on failure) */
-                  var opPromise = storeOp(op, payload, storeUrl, storeKey);
+                /* ── mh:store ────────────────────────────────────────────────── */
+                case 'mh:store':
+                  (function (reqId, op, payload) {
+                    /* Op whitelist (§11.2 — modules can't use mod.*) */
+                    if (!ALLOWED_OPS[op]) {
+                      resultMsg(reqId, false, 'permission-denied: op ' + op);
+                      return;
+                    }
 
-                  opPromise
-                    .then(function (data) { resultMsg(reqId, true, data); })
-                    .catch(function (err) { resultMsg(reqId, false, String(err && err.message || err)); });
-                }(d.reqId, d.op, d.payload));
-                break;
+                    /* status op — no ns check needed */
+                    if (op === 'status') {
+                      resultMsg(reqId, true, storeUrl ? 'service' : 'local');
+                      return;
+                    }
 
-              /* ── mh:log ──────────────────────────────────────────────────── */
-              case 'mh:log':
-                var prefix = '[MH:' + moduleId + ']';
-                var level  = d.level || 'log';
-                var args   = Array.isArray(d.args) ? d.args : [d.args];
-                if (typeof console[level] === 'function') {
-                  console[level].apply(console, [prefix].concat(args));
-                } else {
-                  console.log.apply(console, [prefix].concat(args));
-                }
-                break;
+                    /* Namespace permission check */
+                    var ns = payload && payload.ns;
+                    if (ns && allowedNs.indexOf(ns) === -1) {
+                      resultMsg(reqId, false, 'permission-denied: store ns ' + ns);
+                      return;
+                    }
 
-              /* ── mh:resize ───────────────────────────────────────────────── */
-              case 'mh:resize':
-                /* §12: ignore or apply min-height hint */
-                if (iframe && d.height && typeof d.height === 'number') {
-                  iframe.style.minHeight = d.height + 'px';
-                }
-                break;
+                    /* REST when storeUrl set; in-memory no-op otherwise */
+                    runStoreOp(op, payload)
+                      .then(function (data) { resultMsg(reqId, true, data); })
+                      .catch(function (err) { resultMsg(reqId, false, String(err && err.message || err)); });
+                  }(d.reqId, d.op, d.payload));
+                  break;
 
-              default:
-                break;
+                /* ── mh:log ──────────────────────────────────────────────────── */
+                case 'mh:log':
+                  var prefix = '[MH:' + id + ']';
+                  var level  = d.level || 'log';
+                  var args   = Array.isArray(d.args) ? d.args : [d.args];
+                  if (typeof console[level] === 'function') {
+                    console[level].apply(console, [prefix].concat(args));
+                  } else {
+                    console.log.apply(console, [prefix].concat(args));
+                  }
+                  break;
+
+                /* ── mh:resize ───────────────────────────────────────────────── */
+                case 'mh:resize':
+                  /* §12: ignore or apply min-height hint */
+                  if (iframe && d.height && typeof d.height === 'number') {
+                    iframe.style.minHeight = d.height + 'px';
+                  }
+                  break;
+
+                default:
+                  break;
+              }
+            };
+
+            window.addEventListener('message', _messageListener);
+
+            /* ── Bus handlers — wired once, post to whichever iframe is current ── */
+            if (!_busWired) {
+              _busWired = true;
+              ctx.onBus('theme:changed', function () {
+                postToModule({ type: 'mh:theme', tokens: harvestTokens() });
+              });
+              ctx.onBus('data:modeChanged', function (ev) {
+                console.info('[module-host] data mode changed to', (ev && ev.mode) || '?', '— live rebind not supported in v1');
+              });
             }
-          };
 
-          window.addEventListener('message', _messageListener);
-
-          /* ── Theme change → mh:theme ─────────────────────────────────────── */
-          ctx.onBus('theme:changed', function () {
-            postToModule({ type: 'mh:theme', tokens: harvestTokens() });
+            /* ── Attach iframe to the content area ───────────────────────────── */
+            SFP.dom.clear(_contentEl);
+            _contentEl.style.position = 'relative';
+            _contentEl.style.overflow = 'hidden';
+            _contentEl.appendChild(iframe);
           });
 
-          /* ── Data mode change — log only (§12: out of v1 scope) ─────────── */
-          ctx.onBus('data:modeChanged', function (ev) {
-            console.info('[module-host:' + moduleId + '] data mode changed to', (ev && ev.mode) || '?', '— live rebind not supported in v1');
-          });
+        }).catch(function (err) {
+          if (_disposed) { return; }
+          /* Determine which URL caused the failure for the error card */
+          var msg = err && err.message ? err.message : String(err);
+          showError(_contentEl, 'Load failed', msg);
+        });
+      }
 
-          /* ── Attach iframe to root ────────────────────────────────────────── */
-          SFP.dom.clear(ctx.root);
-          ctx.root.style.position = 'relative';
-          ctx.root.style.overflow = 'hidden';
-          ctx.root.appendChild(iframe);
+      /* ── List available modules for the switcher ──────────────────────────────
+       * Service mode → GET /modules. Offline (staticBase) → read index.json and
+       * best-effort each module.json for a friendly name. Returns [{id,name,version}].
+       */
+      function listModules() {
+        /* Inlined bundle (no fetch — works from file://) takes priority offline. */
+        var B = (!storeUrl && typeof window !== 'undefined') ? window.SFP_MODULE_BUNDLES : null;
+        if (B && Array.isArray(B.index)) {
+          return Promise.resolve(B.index.map(function (mid) {
+            var m = B.modules[mid] && B.modules[mid].manifest;
+            return { id: mid, name: (m && m.name) || mid, version: (m && m.version) || '' };
+          }));
+        }
+        if (storeUrl) {
+          return fetchJsonWithKey(base + '/modules', storeKey);
+        }
+        return fetchJsonWithKey(resBase + '/index.json', storeKey).then(function (ids) {
+          if (!Array.isArray(ids)) { return []; }
+          return Promise.all(ids.map(function (mid) {
+            return fetchJsonWithKey(resBase + '/modules/' + mid + '/module.json', storeKey).then(
+              function (m) { return { id: mid, name: (m && m.name) || mid, version: (m && m.version) || '' }; },
+              function () { return { id: mid, name: mid, version: '' }; }
+            );
+          }));
+        });
+      }
+
+      /* ── Switcher: a persistent bar to pick/switch the running module ─────────
+       * Full-page: the selected module fills the area below the bar; changing the
+       * dropdown swaps it. Works offline from index.json — no service required.
+       * (To run several modules at once, place several module-host panels.)
+       */
+      function buildSwitcher() {
+        var theme = SFP.ui.theme;
+        var memKey = 'mhb-modhost:' + (storeUrl || resBase);
+
+        SFP.dom.clear(ctx.root);
+        ctx.root.style.display = 'flex';
+        ctx.root.style.flexDirection = 'column';
+        ctx.root.style.position = 'relative';
+        ctx.root.style.overflow = 'hidden';
+
+        var bar = SFP.dom.el('div', {
+          style: {
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '8px 12px', flexShrink: '0',
+            background: theme.color('bg-surface'),
+            borderBottom: '1px solid ' + theme.color('border'),
+          },
+        });
+        var label = SFP.dom.el('span', {
+          style: { fontSize: '12px', fontWeight: '600', color: theme.color('text-2'),
+                   textTransform: 'uppercase', letterSpacing: '0.05em' },
+        });
+        label.textContent = 'Module';
+
+        var select = SFP.dom.el('select', {
+          style: {
+            flex: '1 1 auto', maxWidth: '420px', height: '30px', padding: '0 8px',
+            background: theme.color('bg-card'), color: theme.color('text-1'),
+            border: '1px solid ' + theme.color('border'), borderRadius: '4px',
+            fontSize: '13px', outline: 'none', cursor: 'pointer',
+          },
+        });
+        var status = SFP.dom.el('span', {
+          style: { fontSize: '11px', color: theme.color('text-3'), marginLeft: 'auto' },
         });
 
-      }).catch(function (err) {
-        if (_disposed) { return; }
-        /* Determine which URL caused the failure for the error card */
-        var msg = err && err.message ? err.message : String(err);
-        showError(ctx.root, 'Load failed', msg);
-      });
+        bar.appendChild(label);
+        bar.appendChild(select);
+        bar.appendChild(status);
+
+        _contentEl = SFP.dom.el('div', { style: { flex: '1 1 auto', position: 'relative', minHeight: '0' } });
+
+        ctx.root.appendChild(bar);
+        ctx.root.appendChild(_contentEl);
+
+        function go(id) {
+          if (!id) { return; }
+          try { window.localStorage.setItem(memKey, id); } catch (e) { /* ignore */ }
+          select.value = id;
+          bootModule(id);
+        }
+
+        select.addEventListener('change', function () { go(select.value); });
+
+        status.textContent = 'loading…';
+        listModules().then(function (list) {
+          select.innerHTML = '';
+          if (!Array.isArray(list) || list.length === 0) {
+            status.textContent = '';
+            showError(_contentEl, 'No modules available',
+              storeUrl ? 'Nothing published to ' + base : 'No ' + resBase + '/index.json — run scripts/sync-module-bundles.ps1');
+            return;
+          }
+          list.forEach(function (entry) {
+            var opt = document.createElement('option');
+            opt.value = entry.id;
+            opt.textContent = entry.name + (entry.version ? ' v' + entry.version : '') + ' (' + entry.id + ')';
+            select.appendChild(opt);
+          });
+          status.textContent = list.length + ' available' + (storeUrl ? '' : ' · offline');
+
+          /* Auto-load remembered selection if still present, else the first */
+          var remembered = '';
+          try { remembered = window.localStorage.getItem(memKey) || ''; } catch (e) { /* ignore */ }
+          var ids = list.map(function (e) { return e.id; });
+          var initial = (remembered && ids.indexOf(remembered) !== -1) ? remembered : list[0].id;
+          go(initial);
+        }).catch(function (err) {
+          status.textContent = '';
+          showError(_contentEl, 'Failed to list modules', err && err.message ? err.message : String(err));
+        });
+      }
+
+      /* ── Route: pinned module vs switcher ─────────────────────────────────── */
+      if (moduleId) {
+        /* Pinned: boot one fixed module full-area (for preset dashboard panels). */
+        _contentEl = ctx.root;
+        bootModule(moduleId);
+      } else {
+        /* Switcher: pick/switch among available modules (offline or library). */
+        buildSwitcher();
+      }
 
       /* ── destroy ─────────────────────────────────────────────────────────── */
       return {
         destroy: function () {
           if (_disposed) { return; }
           _disposed = true;
-
-          /* Send mh:destroy to the module */
-          if (iframe && iframe.contentWindow) {
-            try {
-              iframe.contentWindow.postMessage({ mh: 1, type: 'mh:destroy' }, '*');
-            } catch (e) { /* ignore */ }
-          }
-
-          /* Remove message listener */
-          if (_messageListener) {
-            window.removeEventListener('message', _messageListener);
-            _messageListener = null;
-          }
-
-          /* Manual unsub for any tags (ctx.subscribe cleanups run via renderer) */
-          Object.keys(_tagUnsubs).forEach(function (dp) {
-            try { _tagUnsubs[dp](); } catch (e) { /* ignore */ }
-          });
-          _tagUnsubs = {};
-          _tagToDp = {};
-
-          /* Remove iframe from DOM */
-          if (iframe && iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe);
-          }
-          iframe = null;
+          teardownCurrent();
         },
       };
     },

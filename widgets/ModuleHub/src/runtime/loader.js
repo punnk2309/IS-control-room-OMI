@@ -144,8 +144,10 @@
 
       /* For library modules, fetch entry via mod.fetch; local modules use relative fetch */
       var isLibrary = MHB.registry.source(id) === 'library';
+      var entryUrl;
       var entryPromise;
       if (isLibrary) {
+        entryUrl = '[library]/' + id + '/' + manifest.entry;
         var libClient = MHB.storeClient;
         if (libClient && typeof libClient.op === 'function') {
           entryPromise = libClient.op('mod.fetch', { id: id, file: manifest.entry })
@@ -157,7 +159,8 @@
           entryPromise = Promise.resolve('');
         }
       } else {
-        entryPromise = fetchText('modules/' + id + '/' + manifest.entry);
+        entryUrl = 'modules/' + id + '/' + manifest.entry;
+        entryPromise = fetchText(entryUrl);
       }
 
       /* Fetch SDK files and module entry in parallel */

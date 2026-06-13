@@ -204,7 +204,7 @@
 
 .mhb-studio-manifest    { flex: 0 0 280px; }
 .mhb-studio-codezone    { flex: 1 1 auto; }
-.mhb-studio-previewzone { flex: 0 0 320px; }
+.mhb-studio-previewzone { flex: 0 0 360px; }
 
 /* ── Zone title bar ────────────────────────────────────────────────────────── */
 
@@ -359,8 +359,17 @@
 
 .mhb-studio-preview-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  background: var(--c-bg-surface, #0b101d);
+  border-bottom: 1px solid var(--c-border, #1f2a44);
+}
+
+.mhb-studio-preview-toolbar .mhb-btn {
+  flex: 0 0 auto;
 }
 
 .mhb-btn--accent {

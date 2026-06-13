@@ -268,8 +268,19 @@ as type `module-host` via `SFP.widgets.register` (which automatically makes it
 selectable in the dashboard editor catalog). NO changes to ModuleHub files are
 needed by this widget — it speaks the same §4/§5 contract from its own code.
 
-- `options`: `{ moduleId, storeUrl, storeKey?, tagMap? }`. `bind`: unused.
+- `options`: `{ moduleId, staticBase?, storeUrl?, storeKey?, tagMap? }`. `bind`: unused.
   `tagMap` optionally maps module tag names → control-room datapoint ids.
+- RESOURCE vs PERSISTENCE split (so a bundled visual works with no service):
+  `resBase = staticBase || storeUrl` is where module.json + SDK + code load
+  from; `storeUrl` is where tx/kv persist. `staticBase` points at a static tree
+  mirroring the service layout (`/sdk/<file>`, `/modules/<id>/<file>`) — e.g.
+  the same-origin `module-bundles/` produced by `scripts/sync-module-bundles.ps1`.
+  When `storeUrl` is absent, store ops are in-session in-memory no-ops
+  (`status` → `'local'`, `kv.get` → null/last-put, `tx.add` → incrementing id,
+  `tx.query` → []) so the module renders and works without a backend; real
+  persistence and the library picker require `storeUrl`.
+- Validation: `moduleId` set needs a `resBase` (staticBase or storeUrl); no
+  `moduleId` needs `storeUrl` (picker lists the service library).
 - Boot: fetch `module.json`, entry file, and the four SDK files from the
   service (`storeUrl` + §11 endpoints, X-Api-Key header); build the sandboxed
   iframe exactly per §4 (allow-scripts only, srcdoc, `</script` escaping);

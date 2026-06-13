@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Discourage stale cached scripts when opened directly from disk -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Smart Factory Control Room</title>
   <link rel="stylesheet" href="styles/base.css">
   <link rel="stylesheet" href="styles/widgets.css">
@@ -78,7 +82,7 @@
   <script src="src/widgets/factory-twin.js"></script>
   <script src="src/widgets/energy-flow.js"></script>
   <script src="src/widgets/gantt-chart.js"></script>
-  <script src="src/widgets/module-host.js"></script>
+  <script src="src/widgets/module-host.js?v=mh2"></script>
 
   <!-- ═══ Configuration (data only — this is what site engineers edit) ═══ -->
   <script src="config/theme.dark.config.js"></script>
@@ -97,7 +101,9 @@
   <script src="config/dashboards/factory-map.dashboard.js"></script>
   <script src="config/dashboards/maintenance.dashboard.js"></script>
   <script src="config/dashboards/analytics.dashboard.js"></script>
-  <script src="config/dashboards/modules.dashboard.js"></script>
+  <script src="config/dashboards/modules.dashboard.js?v=mh2"></script>
+  <!-- Inlined ModuleHub modules (offline / file:// — no fetch). Built by scripts/sync-module-bundles.ps1 -->
+  <script src="module-bundles/bundle.js?v=mh2"></script>
   <script src="config/app.config.js"></script>
 
   <!-- ═══ Config overrides (visual editor persistence) — must come after

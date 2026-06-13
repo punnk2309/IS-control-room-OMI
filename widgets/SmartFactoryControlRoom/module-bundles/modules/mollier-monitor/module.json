@@ -1,0 +1,53 @@
+{
+  "id": "mollier-monitor",
+  "name": "Mollier Monitor",
+  "version": "1.0.0",
+  "minSdk": "1.0",
+  "entry": "main.js",
+  "permissions": {
+    "tags": ["dryer.*"],
+    "store": ["mollier"]
+  },
+  "config": {
+    "tags": {
+      "inletT":        "dryer.inlet.t",
+      "inletRH":       "dryer.inlet.rh",
+      "outletT":       "dryer.outlet.t",
+      "outletRH":      "dryer.outlet.rh",
+      "fbedT":         "dryer.fbed.t",
+      "exhaustT":      "dryer.exhaust.t",
+      "concentrateT":  "dryer.conc.t",
+      "totalSolids":   "dryer.conc.ts",
+      "sprayAngle":    "dryer.atom.angle",
+      "atomizerSpeed": "dryer.atom.speed",
+      "chamberDP":     "dryer.chamber.dp"
+    },
+    "simRanges": {
+      "inletT":        [160, 200],
+      "inletRH":       [0.5,   3],
+      "outletT":       [ 70,  95],
+      "outletRH":      [  8,  25],
+      "fbedT":         [ 55,  75],
+      "exhaustT":      [ 65,  90],
+      "concentrateT":  [ 45,  60],
+      "totalSolids":   [ 48,  56],
+      "sprayAngle":    [ 55,  70],
+      "atomizerSpeed": [14000, 18000],
+      "chamberDP":     [2.5, 4.5]
+    },
+    "chart": {
+      "tMax":        220,
+      "xMax":         60,
+      "pressureKPa": 101.325
+    },
+    "sticky": {
+      "T0":            60,
+      "slopeRH":        0.9,
+      "tsShiftPerPct":  0.8,
+      "tsRef":         50
+    },
+    "warnTag":     "dryer.lumpingWarn",
+    "etaMinutes":  10,
+    "trailPoints": 120
+  }
+}

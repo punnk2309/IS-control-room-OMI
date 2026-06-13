@@ -380,13 +380,13 @@
 
     var runBtn  = el('button', { class: 'mhb-btn mhb-btn--accent', onclick: runPreview }, ['Run preview']);
     var stopBtn = el('button', { class: 'mhb-btn', onclick: stopPreview }, ['Stop']);
-    var pubBtn  = el('button', { class: 'mhb-btn', onclick: onPublish, title: 'Publish to server module library' }, ['Publish to server library']);
+    var pubBtn  = el('button', { class: 'mhb-btn mhb-btn--accent', onclick: onPublish, title: 'Deploy this module to the shared library so it becomes selectable on the main dashboard' }, ['Deploy to Dashboard']);
 
     var previewZone = el('div', { class: 'mhb-studio-zone mhb-studio-previewzone' }, [
       el('div', { class: 'mhb-studio-zone-title' }, [
         el('span', {}, ['Live Preview']),
-        el('div', { class: 'mhb-studio-preview-toolbar' }, [runBtn, stopBtn, pubBtn]),
       ]),
+      el('div', { class: 'mhb-studio-preview-toolbar' }, [runBtn, stopBtn, pubBtn]),
       _previewPane,
       _previewConsole,
     ]);
@@ -772,7 +772,7 @@
     var client = MHB.storeClient;
     client.op('mod.publish', { manifest: manifest, files: { 'main.js': code }, force: force })
       .then(function (result) {
-        showToast('published ' + result.id + ' v' + result.version, 'good');
+        showToast('Deployed ' + result.id + ' v' + result.version + ' — now selectable on the dashboard', 'good');
         /* Refresh shell dropdown so the new library module appears */
         MHB.bus.emit('registry:refresh', {});
       })
