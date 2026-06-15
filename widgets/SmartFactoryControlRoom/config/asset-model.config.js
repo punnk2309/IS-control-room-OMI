@@ -42,7 +42,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR01',
                   name: 'CNC Mill A1',
-                  machineRef: 'M-001',
+                  machineRef: 'M-001', machineType: 'CNC Mill',
                   tags: [],
                   children: [
                     {
@@ -65,7 +65,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR02',
                   name: 'Lathe B2',
-                  machineRef: 'M-002',
+                  machineRef: 'M-002', machineType: 'Lathe',
                   children: [
                     {
                       code: 'CHK1001',
@@ -79,7 +79,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR03',
                   name: 'Mill G7',
-                  machineRef: 'M-007',
+                  machineRef: 'M-007', machineType: 'CNC Mill',
                   children: [],
                 },
               ],
@@ -93,7 +93,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR04',
                   name: 'Press C3',
-                  machineRef: 'M-003',
+                  machineRef: 'M-003', machineType: 'Press',
                   children: [
                     {
                       code: 'HYD1001',
@@ -108,7 +108,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR05',
                   name: 'Grinder E5',
-                  machineRef: 'M-005',
+                  machineRef: 'M-005', machineType: 'Grinder',
                   children: [
                     {
                       code: 'WHL1001',
@@ -130,7 +130,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR06',
                   name: 'Welder D4',
-                  machineRef: 'M-004',
+                  machineRef: 'M-004', machineType: 'Welder',
                   children: [
                     {
                       code: 'COL1001',
@@ -142,6 +142,16 @@ SFP.config.define('asset-model', {
                     },
                   ],
                 },
+              ],
+            },
+
+            /* Unit: Auxiliary Machining (orphan reconciliation) */
+            {
+              code: 'AUX01',
+              name: 'Auxiliary Machining',
+              children: [
+                { code: 'EGR39', name: 'Drill F6',  machineRef: 'M-006', machineType: 'Drill',  children: [] },
+                { code: 'EGR40', name: 'Cutter H8', machineRef: 'M-008', machineType: 'Cutter', children: [] },
               ],
             },
           ],
@@ -162,7 +172,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR07',
                   name: 'Router I9',
-                  machineRef: 'M-009',
+                  machineRef: 'M-009', machineType: 'Router',
                   children: [
                     {
                       code: 'SPN1002',
@@ -176,13 +186,13 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR08',
                   name: 'Saw J10',
-                  machineRef: 'M-010',
+                  machineRef: 'M-010', machineType: 'Saw',
                   children: [],
                 },
                 {
                   code: 'EGR09',
                   name: 'Shear B4',
-                  machineRef: 'M-016',
+                  machineRef: 'M-016', machineType: 'Shear',
                   children: [],
                 },
               ],
@@ -196,7 +206,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR10',
                   name: 'Press K11',
-                  machineRef: 'M-011',
+                  machineRef: 'M-011', machineType: 'Press',
                   children: [
                     {
                       code: 'HYD1002',
@@ -210,7 +220,13 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR11',
                   name: 'Bender B2',
-                  machineRef: 'M-014',
+                  machineRef: 'M-014', machineType: 'Bender',
+                  children: [],
+                },
+                {
+                  code: 'EGR41',
+                  name: 'Punch B3',
+                  machineRef: 'M-015', machineType: 'Punch',
                   children: [],
                 },
               ],
@@ -224,7 +240,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR12',
                   name: 'Lathe L12',
-                  machineRef: 'M-012',
+                  machineRef: 'M-012', machineType: 'Lathe',
                   children: [
                     {
                       code: 'CHK1002',
@@ -238,7 +254,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR13',
                   name: 'CNC Mill B1',
-                  machineRef: 'M-013',
+                  machineRef: 'M-013', machineType: 'CNC Mill',
                   children: [],
                 },
               ],
@@ -269,7 +285,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR14',
                   name: 'Weld Cell 1',
-                  machineRef: 'M-017',
+                  machineRef: 'M-017', machineType: 'Robot Welder',
                   children: [
                     {
                       code: 'TCH1001',
@@ -284,19 +300,19 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR15',
                   name: 'Weld Cell 2',
-                  machineRef: 'M-018',
+                  machineRef: 'M-018', machineType: 'Robot Welder',
                   children: [],
                 },
                 {
                   code: 'EGR16',
                   name: 'Weld Cell 3',
-                  machineRef: 'M-019',
+                  machineRef: 'M-019', machineType: 'Robot Welder',
                   children: [],
                 },
                 {
                   code: 'EGR17',
                   name: 'Weld Cell 4',
-                  machineRef: 'M-020',
+                  machineRef: 'M-020', machineType: 'Robot Welder',
                   children: [],
                 },
               ],
@@ -310,25 +326,25 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR18',
                   name: 'Spot Welder 5',
-                  machineRef: 'M-021',
+                  machineRef: 'M-021', machineType: 'Spot Welder',
                   children: [],
                 },
                 {
                   code: 'EGR19',
                   name: 'Spot Welder 6',
-                  machineRef: 'M-022',
+                  machineRef: 'M-022', machineType: 'Spot Welder',
                   children: [],
                 },
                 {
                   code: 'EGR20',
                   name: 'Seam Welder 7',
-                  machineRef: 'M-023',
+                  machineRef: 'M-023', machineType: 'Seam Welder',
                   children: [],
                 },
                 {
                   code: 'EGR21',
                   name: 'Laser Welder 8',
-                  machineRef: 'M-024',
+                  machineRef: 'M-024', machineType: 'Laser Welder',
                   children: [
                     {
                       code: 'LAS1001',
@@ -359,7 +375,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR22',
                   name: 'Paint Booth 1',
-                  machineRef: 'M-025',
+                  machineRef: 'M-025', machineType: 'Paint Booth',
                   children: [
                     {
                       code: 'FAN1015',
@@ -382,19 +398,19 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR23',
                   name: 'Paint Booth 2',
-                  machineRef: 'M-026',
+                  machineRef: 'M-026', machineType: 'Paint Booth',
                   children: [],
                 },
                 {
                   code: 'EGR24',
                   name: 'Paint Robot 3',
-                  machineRef: 'M-027',
+                  machineRef: 'M-027', machineType: 'Paint Robot',
                   children: [],
                 },
                 {
                   code: 'EGR25',
                   name: 'Paint Robot 4',
-                  machineRef: 'M-028',
+                  machineRef: 'M-028', machineType: 'Paint Robot',
                   children: [],
                 },
               ],
@@ -408,7 +424,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR26',
                   name: 'Curing Oven 5',
-                  machineRef: 'M-029',
+                  machineRef: 'M-029', machineType: 'Curing Oven',
                   children: [
                     {
                       code: 'HET1001',
@@ -423,7 +439,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR27',
                   name: 'Dryer Unit 6',
-                  machineRef: 'M-030',
+                  machineRef: 'M-030', machineType: 'Dryer',
                   children: [],
                 },
               ],
@@ -458,7 +474,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR28',
                   name: 'HVAC System A',
-                  machineRef: 'M-051',
+                  machineRef: 'M-051', machineType: 'HVAC',
                   tags: ['zone.office.energy'],
                   children: [
                     {
@@ -473,7 +489,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR29',
                   name: 'HVAC System B',
-                  machineRef: 'M-052',
+                  machineRef: 'M-052', machineType: 'HVAC',
                   children: [],
                 },
               ],
@@ -487,7 +503,7 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR30',
                   name: 'Compressor 1',
-                  machineRef: 'M-053',
+                  machineRef: 'M-053', machineType: 'Compressor',
                   children: [
                     {
                       code: 'AIR1001',
@@ -501,13 +517,13 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR31',
                   name: 'Compressor 2',
-                  machineRef: 'M-054',
+                  machineRef: 'M-054', machineType: 'Compressor',
                   children: [],
                 },
                 {
                   code: 'EGR32',
                   name: 'Chiller Unit',
-                  machineRef: 'M-055',
+                  machineRef: 'M-055', machineType: 'Chiller',
                   children: [
                     {
                       code: 'CHI1001',
@@ -538,19 +554,19 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR33',
                   name: 'AGV 1',
-                  machineRef: 'M-036',
+                  machineRef: 'M-036', machineType: 'AGV',
                   children: [],
                 },
                 {
                   code: 'EGR34',
                   name: 'AGV 2',
-                  machineRef: 'M-037',
+                  machineRef: 'M-037', machineType: 'AGV',
                   children: [],
                 },
                 {
                   code: 'EGR35',
                   name: 'Conveyor C1',
-                  machineRef: 'M-038',
+                  machineRef: 'M-038', machineType: 'Conveyor',
                   children: [
                     {
                       code: 'DRV1001',
@@ -565,7 +581,19 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR36',
                   name: 'Stacker S1',
-                  machineRef: 'M-040',
+                  machineRef: 'M-040', machineType: 'Stacker Crane',
+                  children: [],
+                },
+                {
+                  code: 'EGR42',
+                  name: 'Conveyor C2',
+                  machineRef: 'M-039', machineType: 'Conveyor',
+                  children: [],
+                },
+                {
+                  code: 'EGR43',
+                  name: 'Wrapper W1',
+                  machineRef: 'M-041', machineType: 'Wrapper',
                   children: [],
                 },
               ],
@@ -579,15 +607,94 @@ SFP.config.define('asset-model', {
                 {
                   code: 'EGR37',
                   name: 'Dock Lift 1',
-                  machineRef: 'M-046',
+                  machineRef: 'M-046', machineType: 'Dock Lift',
                   children: [],
                 },
                 {
                   code: 'EGR38',
                   name: 'Palletizer 3',
-                  machineRef: 'M-048',
+                  machineRef: 'M-048', machineType: 'Palletizer',
                   children: [],
                 },
+                {
+                  code: 'EGR44',
+                  name: 'Dock Lift 2',
+                  machineRef: 'M-047', machineType: 'Dock Lift',
+                  children: [],
+                },
+                {
+                  code: 'EGR45',
+                  name: 'Conveyor C4',
+                  machineRef: 'M-049', machineType: 'Conveyor',
+                  children: [],
+                },
+                {
+                  code: 'EGR46',
+                  name: 'Label Sys 5',
+                  machineRef: 'M-050', machineType: 'Labeller',
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+
+    /* ── Area: QUA – Quality Control (orphan reconciliation) ─────────────── */
+    {
+      code: 'QUA',
+      name: 'Quality Control',
+      children: [
+        {
+          code: 'QCL01',
+          name: 'Inspection Line',
+          children: [
+            {
+              code: 'MET01',
+              name: 'Metrology',
+              children: [
+                { code: 'EGR47', name: 'CMM Station 1', machineRef: 'M-031', machineType: 'CMM',   children: [] },
+                { code: 'EGR48', name: 'CMM Station 2', machineRef: 'M-032', machineType: 'CMM',   children: [] },
+                { code: 'EGR49', name: 'X-Ray Unit 5',  machineRef: 'M-035', machineType: 'X-Ray', children: [] },
+              ],
+            },
+            {
+              code: 'TST01',
+              name: 'Test Lab',
+              children: [
+                { code: 'EGR50', name: 'Vision Sys 3',  machineRef: 'M-033', machineType: 'Vision System', children: [] },
+                { code: 'EGR51', name: 'Test Bench 4',  machineRef: 'M-034', machineType: 'Test Bench',    children: [] },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+
+    /* ── Area: MNT – Maintenance (orphan reconciliation) ─────────────────── */
+    {
+      code: 'MNT',
+      name: 'Maintenance',
+      children: [
+        {
+          code: 'MNB01',
+          name: 'Maintenance Bay Line',
+          children: [
+            {
+              code: 'WRK01',
+              name: 'Workshop',
+              children: [
+                { code: 'EGR52', name: 'Test Rig 1', machineRef: 'M-042', machineType: 'Test Rig', children: [] },
+                { code: 'EGR53', name: 'Test Rig 2', machineRef: 'M-043', machineType: 'Test Rig', children: [] },
+              ],
+            },
+            {
+              code: 'CRN01',
+              name: 'Crane Bay',
+              children: [
+                { code: 'EGR54', name: 'Crane MB1',    machineRef: 'M-044', machineType: 'Overhead Crane', children: [] },
+                { code: 'EGR55', name: 'Balancer MB2', machineRef: 'M-045', machineType: 'Balancer',       children: [] },
               ],
             },
           ],

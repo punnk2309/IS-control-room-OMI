@@ -40,6 +40,22 @@
   margin-bottom: 6px;
 }
 
+.twin-palette-group-header {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--c-text-2);
+  margin: 8px 0 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--c-border);
+}
+.twin-palette-group-header:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .twin-palette-item {
   display: flex;
   gap: 8px;

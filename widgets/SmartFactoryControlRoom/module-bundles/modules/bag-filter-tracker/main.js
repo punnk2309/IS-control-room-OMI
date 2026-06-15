@@ -3,11 +3,12 @@
  * ----------------------------------------------------------------------------
  * Interactive 240-slot bag-filter maintenance tracker.
  * Three independently-tracked parts per slot: upper frame, lower frame, bag.
- * Circular array-map layout • Slot / Tray / Worklist / History tabs
+ * Square-grid array-map (circular frames on a square lattice clipped to a
+ * circular chamber) • Slot / Tray / Worklist / History tabs
  * All I/O via sdk (§6); plain JS, no build, no deps.
  *
  * Sections:
- *   §A  Pure logic (ring layout, wear calc, state mutations)
+ *   §A  Pure logic (square-grid layout, wear calc, state mutations)
  *   §B  CSS injection
  *   §C  DOM scaffolding
  *   §D  Array-map renderer
@@ -55,81 +56,60 @@ MH.register({
      * §A  PURE LOGIC
      * ====================================================================== */
 
-    /* ── §A1  Ring layout calculator ──────────────────────────────────────
+    /* ── §A1  Square-grid layout calculator ───────────────────────────────
      *
-     * Distributes `total` nodes into concentric rings inside a circle of
-     * diameter D.  A centre dot occupies ring 0 with capacity 1 (not used
-     * for slots).  Outer rings increase radius from innerR stepping by
-     * `ringStep` (px); each ring gets a capacity proportional to its
-     * circumference so that node spacing is approximately even.
+     * Arranges `total` nodes on a square lattice and keeps only the cells whose
+     * centre falls inside the inscribed circle — a "disc of squares" with a
+     * stair-stepped edge, matching the reference chamber drawing.  The frames
+     * themselves stay circular (see `.bft-slot{border-radius:50%}`); only their
+     * arrangement changed from concentric rings to this square grid.
      *
-     * Returns an array of { x, y } objects (absolute px inside a DxD box),
-     * indexed 0..(total-1).
+     * Lattice dimension N is the smallest square whose in-circle cell count is
+     * ≥ total; any surplus cells (the ones farthest from centre) are trimmed so
+     * exactly `total` remain, preserving a clean disc.  Remaining cells are
+     * numbered column-major (left→right, top→bottom within a column).
+     *
+     * Returns { positions:[{x,y}…], cellSize, N }, positions in DxD px space.
      *
      * Parameters:
-     *   total    — number of nodes (e.g. 240)
-     *   D        — container side length in px
-     *   nodeSize — approximate diameter of each node (px); used for spacing
-     *
-     * Exported pure: ringLayout(total, D, nodeSize)  → [{x,y}, ...]
+     *   total — number of nodes (e.g. 240)
+     *   D     — container side length in px
      * ---------------------------------------------------------------------- */
-    function ringLayout(total, D, nodeSize) {
-      var cx = D / 2;
-      var cy = D / 2;
-      var maxR = D / 2 - nodeSize;   // keep nodes inside boundary
-      var minR = nodeSize * 1.5;     // smallest ring radius
-
-      // Step between rings — roughly one node diameter plus a small gap
-      var ringStep = nodeSize * 1.6;
-
-      // How many rings fit?
-      var rings = [];
-      var r = minR;
-      while (r <= maxR) {
-        rings.push(r);
-        r += ringStep;
+    function inCircleCells(N) {
+      var R = N / 2, R2 = R * R, c = N / 2, out = [];
+      for (var col = 0; col < N; col++) {
+        for (var row = 0; row < N; row++) {
+          var dx = col + 0.5 - c, dy = row + 0.5 - c;
+          var d2 = dx * dx + dy * dy;
+          if (d2 < R2) { out.push({ col: col, row: row, d2: d2 }); }
+        }
       }
-      // If we got 0 rings, force at least one
-      if (rings.length === 0) { rings.push(minR); }
+      return out;
+    }
 
-      // Distribute `total` slots across rings proportionally to circumference
-      var totalCirc = rings.reduce(function (s, rr) { return s + rr; }, 0);
-      var capacities = rings.map(function (rr) {
-        return Math.max(1, Math.round(total * rr / totalCirc));
+    function gridLayout(total, D) {
+      // Smallest lattice whose inscribed-circle cell count covers `total`.
+      // Seed from the circle-fill ratio (π/4 of the square) then grow if short.
+      var N = Math.max(1, Math.ceil(Math.sqrt(total * 4 / Math.PI)));
+      var cells = inCircleCells(N);
+      while (cells.length < total) { N += 1; cells = inCircleCells(N); }
+
+      // Trim the surplus: drop cells farthest from centre so a tidy disc remains.
+      if (cells.length > total) {
+        cells.sort(function (a, b) {
+          return b.d2 - a.d2 || b.row - a.row || b.col - a.col; // farthest first
+        });
+        cells = cells.slice(cells.length - total);
+      }
+
+      // Number column-major (matches the reference drawing's left→right columns).
+      cells.sort(function (a, b) { return a.col - b.col || a.row - b.row; });
+
+      var cellSize = D / N;
+      var positions = cells.map(function (cell) {
+        return { x: (cell.col + 0.5) * cellSize, y: (cell.row + 0.5) * cellSize };
       });
-
-      // Adjust last ring so capacities sum exactly to total
-      var capSum = capacities.reduce(function (s, c) { return s + c; }, 0);
-      var diff   = total - capSum;
-      capacities[capacities.length - 1] += diff;
-      // If diff was negative (over-allocated), trim from last ring and carry back
-      for (var i = capacities.length - 1; i >= 0; i--) {
-        if (capacities[i] < 1) {
-          var borrow = 1 - capacities[i];
-          capacities[i] = 1;
-          if (i > 0) { capacities[i - 1] -= borrow; }
-        }
-      }
-
-      // Generate positions
-      var positions = [];
-      for (var ri = 0; ri < rings.length; ri++) {
-        var cap  = capacities[ri];
-        var rRing = rings[ri];
-        for (var ni = 0; ni < cap; ni++) {
-          var angle = (2 * Math.PI * ni / cap) - Math.PI / 2; // start at top
-          positions.push({
-            x: cx + rRing * Math.cos(angle),
-            y: cy + rRing * Math.sin(angle)
-          });
-        }
-      }
-
-      // Truncate / extend to exactly `total` (safety)
-      while (positions.length < total) {
-        positions.push({ x: cx, y: cy });
-      }
-      return positions.slice(0, total);
+      return { positions: positions, cellSize: cellSize, N: N };
     }
 
     /* ── §A2  Wear calculation ─────────────────────────────────────────────
@@ -364,7 +344,7 @@ MH.register({
         /* Map wrapper: constrains the circular vessel outline */
         '.bft-map-wrapper{',
         '  flex:1 1 0;display:flex;align-items:center;justify-content:center;',
-        '  overflow:hidden;padding:12px;min-height:0;',
+        '  overflow:hidden;padding:4px;min-height:0;',
         '}',
         '.bft-map-container{',
         '  position:relative;border-radius:50%;flex-shrink:0;',
@@ -645,7 +625,7 @@ MH.register({
 
     function computeMapSize() {
       var rect = _mapWrapper.getBoundingClientRect();
-      var avail = Math.min(rect.width, rect.height) - 24; // padding
+      var avail = Math.min(rect.width, rect.height) - 8; // wrapper padding (4px each side)
       if (avail < 60) { avail = 60; }
       return avail;
     }
@@ -657,13 +637,17 @@ MH.register({
       }
       _slotNodes = {};
 
-      var D    = _mapSize;
-      var ns   = _nodeSize;
+      var D = _mapSize;
 
       _mapContainer.style.width  = D + 'px';
       _mapContainer.style.height = D + 'px';
 
-      _positions = ringLayout(SLOTS, D, ns);
+      // Square lattice clipped to the chamber circle. Each frame is a circular
+      // dot sized to ~82% of its cell so a thin gap shows between neighbours.
+      var layout = gridLayout(SLOTS, D);
+      _positions = layout.positions;
+      var ns = Math.max(6, Math.floor(layout.cellSize * 0.82));
+      _nodeSize = ns;
 
       for (var i = 0; i < SLOTS; i++) {
         var slotKey = String(i + 1);
@@ -714,7 +698,6 @@ MH.register({
 
     function initMap() {
       _mapSize  = computeMapSize();
-      _nodeSize = Math.max(10, Math.round(_mapSize / 28));
       buildSlotNodes();
       updateMapColors();
       /* If the iframe wasn't laid out yet, computeMapSize() hits its 60px floor
@@ -730,7 +713,6 @@ MH.register({
         var s = computeMapSize();
         if (s > 60 && Math.abs(s - _mapSize) > 4) {
           _mapSize  = s;
-          _nodeSize = Math.max(10, Math.round(s / 28));
           buildSlotNodes();
           updateMapColors();
         } else if (s <= 60) {
@@ -1337,7 +1319,6 @@ MH.register({
         var newSize = computeMapSize();
         if (Math.abs(newSize - _mapSize) > 4) {
           _mapSize  = newSize;
-          _nodeSize = Math.max(10, Math.round(_mapSize / 28));
           buildSlotNodes();
           updateMapColors();
         }

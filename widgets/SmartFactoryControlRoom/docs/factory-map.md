@@ -38,7 +38,8 @@ SFP.config.define('twin.layout', {
 
 ```js
 {
-  id: 'assembly-a',           // stable; shared with machines.config.js
+  id: 'assembly-a',           // stable; this IS a machine's physical zone
+                              //   (machine-registry derives zone from placement here)
   label: 'Assembly Line A',
   rect: { x, y, w, h },       // absolute world coords
   points: [[dx,dy], ...],     // optional polygon vertices (rect-relative)
@@ -77,7 +78,9 @@ SFP.config.define('twin.layout', {
 ### Machine
 
 ```js
-{ ref: 'M-001' }               // fleet machine (label/state from machines.config)
+{ ref: 'M-001' }               // fleet machine: name/type from the asset model,
+                               //   state/load from the registry. Placing it here
+                               //   also defines this machine's physical zone.
 
 {
   id: 'AHU-A1',

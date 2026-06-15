@@ -1,7 +1,7 @@
 {
-  "id": "bag-filter-tracker",
-  "name": "Bag Filter Tracker",
-  "version": "2.1.0",
+  "id": "bag-filter-tracker-v1",
+  "name": "Bag Filter Tracker (v1 · ring layout)",
+  "version": "1.0.0",
   "minSdk": "1.0",
   "entry": "main.js",
   "permissions": {
@@ -10,7 +10,7 @@
   },
   "config": {
     "slots": 240,
-    "layout": "square",
+    "layout": "circular",
     "partTypes": {
       "upper": { "label": "Upper frame", "maxHours": 2000 },
       "lower": { "label": "Lower frame", "maxHours": 2000 },

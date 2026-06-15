@@ -19,6 +19,63 @@
 (function (SFP) {
   'use strict';
 
+  /* ── Machine identity + physical zone derivation ────────────────────────
+   * Machines are declared once, in the asset model (config/asset-model.config
+   * .js): every node carrying a `machineRef` IS a fleet machine, and supplies
+   * its id (machineRef), display name, and machineType. The physical `zone`
+   * is a separate concern — sourced from the twin layout (config/twin/
+   * twin.layout.config.js), where each machine is placed as `{ ref: 'M-xxx' }`
+   * inside exactly one top-level zone. Asset structure and physical location
+   * are intentionally decoupled (a machine's asset parent need not match its
+   * twin zone), so the two are read from their own configs.
+   *
+   * Both walkers read raw config (not SFP.data.assets), so they are immune to
+   * init ordering — the registry initialises before the asset registry. */
+
+  /** Walk the asset-model tree; emit one {id,name,type,zone} per machineRef. */
+  function buildMachinesFromAssets() {
+    var out = [];
+    var cfg;
+    try { cfg = SFP.config.get('asset-model'); }
+    catch (e) { return out; }
+    (function walk(node) {
+      if (!node) { return; }
+      if (node.machineRef) {
+        out.push({
+          id: node.machineRef,
+          name: node.name || node.machineRef,
+          type: node.machineType || '',
+          zone: null,
+        });
+      }
+      if (Array.isArray(node.children)) { node.children.forEach(walk); }
+    }(cfg));
+    return out;
+  }
+
+  /** Recursively collect every `{ ref }` machine under a twin layout node. */
+  function collectTwinRefs(node, emit) {
+    if (!node) { return; }
+    if (node.ref) { emit(node.ref); }
+    ['floors', 'subzones', 'machines'].forEach(function (key) {
+      if (Array.isArray(node[key])) {
+        node[key].forEach(function (child) { collectTwinRefs(child, emit); });
+      }
+    });
+  }
+
+  /** Build machineId → physical top-level zone id from the twin layout. */
+  function buildZoneMapFromTwin() {
+    var map = {};
+    var layout;
+    try { layout = SFP.config.get('twin.layout'); }
+    catch (e) { return map; }
+    (layout.zones || []).forEach(function (zone) {
+      collectTwinRefs(zone, function (ref) { map[ref] = zone.id; });
+    });
+    return map;
+  }
+
   /* ── Coherent per-machine simulation ───────────────────────────────────── */
 
   var TRANSITIONS = {
@@ -147,11 +204,19 @@
     _unsubs: [],
 
     init: function (hub) {
-      var cfg = SFP.config.get('machines');
+      var cfg = SFP.config.get('machines');  // machine-CLASS config: metrics + simulation
       var self = this;
       this.hub = hub;
-      this._machines = cfg.machines.slice();
-      this._machines.forEach(function (m) { self._byId[m.id] = m; });
+
+      /* Identity from the asset model; physical zone from the twin layout.
+       * Returned object shape stays {id, name, zone, type} so the ~14
+       * consumers of SFP.data.machines are untouched. */
+      this._machines = buildMachinesFromAssets();
+      var zoneByRef = buildZoneMapFromTwin();
+      this._machines.forEach(function (m) {
+        m.zone = zoneByRef[m.id] || null;
+        self._byId[m.id] = m;
+      });
 
       /* Define a datapoint per machine x metric from the config templates. */
       this._machines.forEach(function (m) {

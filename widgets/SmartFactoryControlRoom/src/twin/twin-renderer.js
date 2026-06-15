@@ -304,9 +304,14 @@
 
       ctx.globalAlpha = alpha;
 
+      /* Polygon subzones trace their outline; rect subzones use rounded rects. */
+      var subShapePath = el.poly
+        ? function () { self._tracePoly(ctx, el.poly); }
+        : function () { self._roundRect(ctx, r, 4); };
+
       /* 1. Base fill. */
       ctx.fillStyle = self.colors['twin-subzone-fill'];
-      self._roundRect(ctx, r, 4);
+      subShapePath();
       ctx.fill();
 
       /* 2. Image (if configured) — element-level then active-floor overlay. */
@@ -323,7 +328,7 @@
       /* 3. Border. */
       ctx.strokeStyle = self.colors['twin-subzone-border'];
       ctx.lineWidth = 1 / z;
-      self._roundRect(ctx, r, 4);
+      subShapePath();
       ctx.stroke();
 
       if (labelOn) {
@@ -356,7 +361,34 @@
       if (!SFP.twin.router.gatesActive(self.model, self.store, el)) { return; }
       var r = el.rect;
 
-      /* State color from the machine state group; no-data grey in live. */
+      /* State color from the machine state group; no-data grey in live.
+       * visual:true elements are decorative — skip data-state logic entirely. */
+      if (el.visual) {
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = self.colors['twin-machine-fill'];
+        ctx.strokeStyle = self.colors['twin-machine-border'];
+        ctx.lineWidth = 1.5 / z;
+        var vr = el.rect;
+        if (el.shape === 'circle') {
+          var vcx = vr.x + vr.w / 2, vcy = vr.y + vr.h / 2, vrad = Math.min(vr.w, vr.h) / 2;
+          ctx.beginPath(); ctx.arc(vcx, vcy, vrad, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(vcx, vcy, vrad, 0, Math.PI * 2); ctx.stroke();
+        } else {
+          self._roundRect(ctx, vr, el.shape === 'round' ? vr.h / 2 : 3); ctx.fill();
+          self._roundRect(ctx, vr, el.shape === 'round' ? vr.h / 2 : 3); ctx.stroke();
+        }
+        self._drawElementImage(ctx, el, vr);
+        if (labelOn) {
+          ctx.fillStyle = self.colors['twin-label'];
+          ctx.font = '600 ' + (9.5 / z) + 'px "Segoe UI", system-ui, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText(el.label, vr.x + vr.w / 2, vr.y + vr.h + 4 / z);
+          ctx.textAlign = 'left';
+        }
+        ctx.globalAlpha = 1;
+        if (alpha > 0.4) { self.hitElements.push({ el: el, alpha: alpha }); }
+        return;
+      }
       var stateBinding = el.bindings.state && el.bindings.state.datapoint;
       var noData = stateBinding ? self.data.noData(stateBinding)
         : (el.bindings.value ? self.data.noData(el.bindings.value.datapoint) : live);

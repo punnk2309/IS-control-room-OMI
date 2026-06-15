@@ -3,6 +3,15 @@
 The asset model gives every tag and datapoint a physical home inside the plant's
 equipment hierarchy, following the **DS650** naming convention.
 
+It is also the **single source of machine identity**: every node carrying a
+`machineRef` *is* a fleet machine and supplies its id, `name`, and `machineType`.
+`config/machines.config.js` no longer lists individual machines — it keeps only
+machine-**class** config (metric templates + the demo state distribution). A
+machine's physical **zone** is a separate concern, derived from its placement in
+the twin layout (`config/twin/twin.layout.config.js`), because asset structure
+and physical location are intentionally decoupled. See
+[Machines: single source of identity](#machines-single-source-of-identity).
+
 ---
 
 ## DS650 Hierarchy Levels
@@ -59,7 +68,8 @@ SFP.config.define('asset-model', {
               children: [
                 {
                   code: 'EGR01', name: 'CNC Mill A1',
-                  machineRef: 'M-001',     // links to machines.config.js id
+                  machineRef: 'M-001',         // machine identity (fleet id)
+                  machineType: 'CNC Mill',     // machine class/type
                   children: [
                     {
                       code: 'SPN1001', name: 'Spindle Assembly',
@@ -87,7 +97,40 @@ SFP.config.define('asset-model', {
 | `name`       | No       | Human-readable label |
 | `children`   | No       | Array of child nodes (omit or `[]` for leaves) |
 | `tags`       | No       | Array of datapoint ids physically located here |
-| `machineRef` | No       | Machine id from `machines.config.js`; enables `tagsUnder` to auto-expand all `machine.<id>.*` datapoints |
+| `machineRef` | No       | Fleet machine id (e.g. `M-001`). Declaring it here is what *defines* the machine as a fleet member; also enables `tagsUnder` to auto-expand all `machine.<id>.*` datapoints |
+| `machineType`| No       | Machine class/type string (e.g. `CNC Mill`). Surfaced as the machine's `type` via `SFP.data.machines`; used for the twin element sublabel |
+
+---
+
+## Machines: single source of identity
+
+Machines are declared **once**, here in the asset model. Any node with a
+`machineRef` is a fleet machine; its `name` and `machineType` come from the same
+node. `src/data/machine-registry.js` builds `SFP.data.machines` by walking this
+tree for `machineRef` nodes, so the asset model is the authoritative machine
+inventory.
+
+**Identity vs. location are separate sources:**
+
+| Concern              | Source of truth                              |
+|----------------------|----------------------------------------------|
+| `id`, `name`, `type` | asset model node (`machineRef`/`name`/`machineType`) |
+| physical `zone`      | twin layout (`config/twin/twin.layout.config.js`) — the top-level zone whose tree contains `{ ref: '<id>' }` |
+| metrics + sim class  | `config/machines.config.js` (`metrics`, `simulation.initialStates`) |
+
+The registry returns the same object shape as before —
+`{ id, name, zone, type }` — so every consumer of `SFP.data.machines`
+(`list` / `get` / `byZone` / `stateOf` / `counts` / `dp`) is unchanged.
+
+Because asset structure need not mirror physical location, a machine can sit
+under one asset area while being physically placed in a different twin zone. Two
+areas exist purely to home machines that have no production-line parent:
+**`QUA` (Quality Control)** and **`MNT` (Maintenance)**.
+
+> **Adding a machine:** add a node with a unique DS650 machine code, a
+> `machineRef`, a `name`, and a `machineType` under the appropriate unit, then
+> place `{ ref: '<id>' }` in the desired twin zone so it gets a physical `zone`.
+> No edit to `machines.config.js` is needed.
 
 ---
 
@@ -235,16 +278,21 @@ units.forEach(function (unit) {
 
 The asset model adds two files to `index.html`:
 
-- `config/asset-model.config.js` — in the **Configuration** section, after
-  `config/machines.config.js` (needed for `machineRef` labels to make sense).
+- `config/asset-model.config.js` — in the **Configuration** section. Since the
+  machine registry now derives its fleet from this config, it must be defined
+  before `SFP.data.machines.init()` runs (all `config/*` files load before the
+  data layer, so this holds automatically).
 - `src/data/asset-model.js` — in the **Data layer** section, after
   `src/data/machine-registry.js`.
 
-Initialisation is called in `src/app.js` immediately after
-`SFP.data.machines.init(hub)`:
+Initialisation is called in `src/app.js`:
 
 ```js
-SFP.data.machines.init(hub);
-SFP.data.assets.init();   // ← DS650 tree built here
+SFP.data.machines.init(hub);  // reads asset-model + twin.layout CONFIG directly
+SFP.data.assets.init();       // ← DS650 tree built here
 SFP.state.alarms.init(hub);
 ```
+
+`machines.init()` runs **before** `assets.init()`, so the registry reads the
+**raw config** (`SFP.config.get('asset-model')` and `'twin.layout'`) rather than
+`SFP.data.assets` — making it immune to data-layer init ordering.

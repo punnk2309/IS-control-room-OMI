@@ -51,19 +51,25 @@
   var UNDO_CAP = 50;             // maximum undo entries
 
   /* Preset stamps offered in the palette. kind decides where a stamp may be
-   * dropped (machine -> subzone, subzone -> zone, zone/external -> canvas). */
+   * dropped (machine -> subzone, subzone -> zone, zone/external -> canvas).
+   * group: 'visual' = decorative shapes with no asset semantics;
+   * group: 'asset'  = shapes tagged with assetLevel for asset hierarchy. */
   var PRESETS = [
-    { id: 'zone',     label: 'Zone',          kind: 'zone',    w: 360, h: 240, swatch: '' },
-    { id: 'polyzone', label: 'Polygon zone',  kind: 'polygon', swatch: 'poly' },
-    { id: 'subzone',  label: 'Subzone',       kind: 'subzone', w: 180, h: 120, swatch: '' },
-    { id: 'machine',  label: 'Machine',       kind: 'machine', w: 64, h: 40, shape: 'rect', swatch: '' },
-    { id: 'round',    label: 'Round unit',    kind: 'machine', w: 64, h: 40, shape: 'round', swatch: 'circle' },
-    { id: 'tank',     label: 'Tank / Silo',   kind: 'machine', w: 56, h: 56, shape: 'circle', swatch: 'circle' },
-    { id: 'pump',     label: 'Pump',          kind: 'machine', w: 36, h: 36, shape: 'circle', swatch: 'circle' },
-    { id: 'conveyor', label: 'Conveyor',      kind: 'machine', w: 140, h: 24, shape: 'rect', swatch: 'wide' },
-    { id: 'boiler',   label: 'Boiler / Oven', kind: 'machine', w: 90, h: 60, shape: 'rect', swatch: '' },
-    { id: 'ahu',      label: 'AHU / Fan',     kind: 'machine', w: 64, h: 40, shape: 'round', swatch: 'circle' },
-    { id: 'external', label: 'External node', kind: 'external', w: 52, h: 52, swatch: 'circle' },
+    /* ── Visual group ─────────────────────────────────────────────────────── */
+    { id: 'zone',       label: 'Zone',             group: 'visual', kind: 'zone',    w: 360, h: 240, swatch: '' },
+    { id: 'polyzone',   label: 'Polygon zone',     group: 'visual', kind: 'polygon', swatch: 'poly' },
+    { id: 'subzone',    label: 'Subzone',           group: 'visual', kind: 'subzone', w: 180, h: 120, swatch: '' },
+    { id: 'polysubzone',label: 'Polygon subzone',  group: 'visual', kind: 'poly-subzone', swatch: 'poly' },
+    { id: 'circle',     label: 'Circle',            group: 'visual', kind: 'machine', w: 56, h: 56, shape: 'circle', visual: true, swatch: 'circle' },
+    { id: 'pill',       label: 'Pill',              group: 'visual', kind: 'machine', w: 80, h: 32, shape: 'round',  visual: true, swatch: 'circle' },
+    { id: 'external',   label: 'External node',     group: 'visual', kind: 'external', w: 52, h: 52, swatch: 'circle' },
+    /* ── Asset group ──────────────────────────────────────────────────────── */
+    { id: 'area',       label: 'Area',              group: 'asset', kind: 'zone',    assetLevel: 'area',      w: 360, h: 240, swatch: '' },
+    { id: 'line',       label: 'Line',              group: 'asset', kind: 'subzone', assetLevel: 'line',      w: 180, h: 120, swatch: '' },
+    { id: 'machine',    label: 'Machine',           group: 'asset', kind: 'machine', assetLevel: 'machine',   w: 64, h: 40, shape: 'rect', swatch: '' },
+    { id: 'unit',       label: 'Unit',              group: 'asset', kind: 'machine', assetLevel: 'unit',      w: 64, h: 40, shape: 'rect', swatch: '' },
+    { id: 'equipment',  label: 'Equipment',         group: 'asset', kind: 'machine', assetLevel: 'equipment', w: 56, h: 40, shape: 'rect', swatch: '' },
+    { id: 'component',  label: 'Component',         group: 'asset', kind: 'machine', assetLevel: 'component', w: 48, h: 32, shape: 'rect', swatch: '' },
   ];
 
   function snap(v) { return Math.round(v / SNAP) * SNAP; }
@@ -643,8 +649,10 @@
     var cfg = clone(SFP.config.get('twin.layout'));
 
     if (preset.kind === 'zone') {
-      cfg.zones.push({ id: id, label: 'New zone', rect: { x: x, y: y, w: preset.w, h: preset.h },
-        subzones: [] });
+      var newZone = { id: id, label: 'New zone', rect: { x: x, y: y, w: preset.w, h: preset.h },
+        subzones: [] };
+      if (preset.assetLevel) { newZone.assetLevel = preset.assetLevel; }
+      cfg.zones.push(newZone);
       this._commitLayout(cfg);
       return;
     }
@@ -665,14 +673,16 @@
         zoneNode.subzones = zoneNode.subzones || [];
         subList = zoneNode.subzones;
       }
-      subList.push({ id: id, label: 'New subzone',
+      var newSubzone = { id: id, label: 'New subzone',
         rect: { x: x - zoneHit.rect.x, y: y - zoneHit.rect.y, w: preset.w, h: preset.h },
-        machines: [] });
+        machines: [] };
+      if (preset.assetLevel) { newSubzone.assetLevel = preset.assetLevel; }
+      subList.push(newSubzone);
       this._commitLayout(cfg);
       return;
     }
 
-    /* machine */
+    /* machine (includes visual Circle / Pill shapes) */
     var subHit = this._hitKindAt(world, 'subzone');
     if (!subHit) { this._toast('Drop machines inside a subzone'); return; }
     var subNode = this._findLayoutNode(cfg, subHit).node;
@@ -686,8 +696,11 @@
       subNode.machines = subNode.machines || [];
       machineList = subNode.machines;
     }
-    machineList.push({ id: id, label: preset.label, kind: preset.label, shape: preset.shape || 'rect',
-      rect: { x: x - subHit.rect.x, y: y - subHit.rect.y, w: preset.w, h: preset.h } });
+    var newMachine = { id: id, label: preset.label, kind: preset.label, shape: preset.shape || 'rect',
+      rect: { x: x - subHit.rect.x, y: y - subHit.rect.y, w: preset.w, h: preset.h } };
+    if (preset.assetLevel) { newMachine.assetLevel = preset.assetLevel; }
+    if (preset.visual) { newMachine.visual = true; }
+    machineList.push(newMachine);
     this._commitLayout(cfg);
   };
 
@@ -728,6 +741,37 @@
     var points = t.points.map(function (p) { return [p.x - x0, p.y - y0]; });
 
     var cfg = clone(SFP.config.get('twin.layout'));
+
+    /* ── poly-subzone: place polygon as a subzone into the containing zone ── */
+    if (t.kind === 'poly-subzone') {
+      var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      var zoneHit = this._hitKindAt({ x: cx, y: cy }, 'zone');
+      if (!zoneHit) { this._toast('Draw poly-subzone inside a zone'); return; }
+      var zoneNode = this._findLayoutNode(cfg, zoneHit).node;
+      var zoneFloors = zoneNode.floors;
+      var subList;
+      if (zoneFloors) {
+        var activeFloorId = this.store.activeFloor(zoneHit);
+        var floor = zoneFloors.filter(function (f) { return f.id === activeFloorId; })[0] || zoneFloors[0];
+        floor.subzones = floor.subzones || [];
+        subList = floor.subzones;
+      } else {
+        zoneNode.subzones = zoneNode.subzones || [];
+        subList = zoneNode.subzones;
+      }
+      subList.push({
+        id: 'psz-' + Math.floor(Date.now() % 100000),
+        label: 'New subzone',
+        rect: { x: Math.round(x0 - zoneHit.rect.x), y: Math.round(y0 - zoneHit.rect.y),
+                w: Math.max(24, Math.round(x1 - x0)), h: Math.max(16, Math.round(y1 - y0)) },
+        points: points,
+        machines: [],
+      });
+      this._commitLayout(cfg);
+      return;
+    }
+
+    /* ── polygon zone (default) ─────────────────────────────────────────── */
     if (t.zoneTarget) {
       var el = this.model.elements[t.zoneTarget];
       var found = this._findLayoutNode(cfg, el);
@@ -895,20 +939,28 @@
 
     this.els.palette = dom.el('div', { class: 'twin-palette' },
       [dom.el('div', { class: 'twin-palette-title', text: 'Palette' })]);
-    PRESETS.forEach(function (preset) {
-      var item = dom.el('button', { class: 'twin-palette-item', 'data-preset': preset.id,
-        onclick: function () {
-          if (preset.kind === 'polygon') {
-            self.tool = { type: 'polygon', points: [], zoneTarget: null };
-          } else {
-            self.tool = { type: 'stamp', preset: preset };
-          }
-          self._highlightPalette();
-        } }, [
-        dom.el('span', { class: 'twin-palette-swatch ' + (preset.swatch || '') }),
-        preset.label,
-      ]);
-      self.els.palette.appendChild(item);
+    var groups = ['visual', 'asset'];
+    var groupLabels = { visual: 'Visual', asset: 'Asset' };
+    groups.forEach(function (grp) {
+      self.els.palette.appendChild(dom.el('div', {
+        class: 'twin-palette-group-header',
+        text: groupLabels[grp],
+      }));
+      PRESETS.filter(function (p) { return p.group === grp; }).forEach(function (preset) {
+        var item = dom.el('button', { class: 'twin-palette-item', 'data-preset': preset.id,
+          onclick: function () {
+            if (preset.kind === 'polygon' || preset.kind === 'poly-subzone') {
+              self.tool = { type: 'polygon', kind: preset.kind, points: [], zoneTarget: null };
+            } else {
+              self.tool = { type: 'stamp', preset: preset };
+            }
+            self._highlightPalette();
+          } }, [
+          dom.el('span', { class: 'twin-palette-swatch ' + (preset.swatch || '') }),
+          preset.label,
+        ]);
+        self.els.palette.appendChild(item);
+      });
     });
 
     this.els.props = dom.el('div', { class: 'twin-props' });
@@ -959,7 +1011,8 @@
         var presetId = item.getAttribute('data-preset');
         var on = self.tool && (
           (self.tool.type === 'stamp' && self.tool.preset.id === presetId) ||
-          (self.tool.type === 'polygon' && presetId === 'polyzone'));
+          (self.tool.type === 'polygon' && self.tool.kind === 'polygon' && presetId === 'polyzone') ||
+          (self.tool.type === 'polygon' && self.tool.kind === 'poly-subzone' && presetId === 'polysubzone'));
         item.classList.toggle('active', !!on);
       });
   };
@@ -1239,6 +1292,22 @@
         }));
         box.appendChild(row('Shape', shapeSel));
       }
+      /* Asset level tag (read-only display) */
+      if (el.assetLevel) {
+        box.appendChild(row('Asset level', dom.el('input', {
+          value: el.assetLevel, disabled: 'disabled',
+        })));
+      }
+      /* Floor add / delete — available on zones and subzones */
+      if (el.kind === 'zone' || el.kind === 'subzone') {
+        box.appendChild(dom.el('div', { class: 'twin-palette-title', text: 'Floors' }));
+        box.appendChild(dom.el('button', { class: 'twin-chip',
+          onclick: function () { self._addFloor(el); } },
+          [SFP.icons.el('plus', 12), ' Add floor']));
+        box.appendChild(dom.el('button', { class: 'twin-chip',
+          onclick: function () { self._deleteFloor(el); } },
+          [SFP.icons.el('minus', 12), ' Delete active floor']));
+      }
       box.appendChild(dom.el('div', { class: 'danger' }, [
         dom.el('button', { class: 'twin-chip', text: 'Delete element',
           onclick: function () { self._deleteSelected(); } }),
@@ -1367,6 +1436,65 @@
         } },
         [SFP.icons.el('minus', 12), 'Remove image']));
     }
+  };
+
+  /* ── Floor add / delete ─────────────────────────────────────────────────── */
+
+  /** Add a new floor to a zone or subzone, migrating flat content if needed. */
+  Editor.prototype._addFloor = function (el) {
+    var cfg = clone(SFP.config.get('twin.layout'));
+    var found = this._findLayoutNode(cfg, el);
+    if (!found) { return; }
+    var node = found.node;
+    var isZone = (el.kind === 'zone');
+
+    /* Migrate flat content into an initial floor if floors don't exist yet. */
+    if (!node.floors) {
+      if (isZone) {
+        node.floors = [{ id: 'main', label: 'Floor 1', subzones: node.subzones || [] }];
+        delete node.subzones;
+      } else {
+        node.floors = [{ id: 'main', label: 'Level 1', machines: node.machines || [] }];
+        delete node.machines;
+      }
+    }
+
+    var newId = 'f' + Date.now();
+    var newFloor = isZone
+      ? { id: newId, label: 'New floor', subzones: [] }
+      : { id: newId, label: 'New floor', machines: [] };
+    node.floors.push(newFloor);
+    this._commitLayout(cfg);
+
+    /* Activate the new floor if the store supports it. */
+    if (this.store.setActiveFloor) { this.store.setActiveFloor(el.id, newId); }
+    this._renderProps();
+  };
+
+  /** Delete the currently active floor (guard: at least 1 floor must remain). */
+  Editor.prototype._deleteFloor = function (el) {
+    if (!el.floors || el.floors.length <= 1) {
+      this._toast('Cannot delete the only floor');
+      return;
+    }
+    var cfg = clone(SFP.config.get('twin.layout'));
+    var found = this._findLayoutNode(cfg, el);
+    if (!found) { return; }
+    var node = found.node;
+    if (!node.floors || node.floors.length <= 1) {
+      this._toast('Cannot delete the only floor');
+      return;
+    }
+    var activeId = this.store.activeFloor(el);
+    var idx = -1;
+    node.floors.forEach(function (f, i) { if (f.id === activeId) { idx = i; } });
+    if (idx < 0) { idx = node.floors.length - 1; }
+    node.floors.splice(idx, 1);
+    /* Re-activate the first remaining floor. */
+    var newActive = node.floors[0].id;
+    this._commitLayout(cfg);
+    if (this.store.setActiveFloor) { this.store.setActiveFloor(el.id, newActive); }
+    this._renderProps();
   };
 
   /** Append the Config / export section (shared between element and connection props). */

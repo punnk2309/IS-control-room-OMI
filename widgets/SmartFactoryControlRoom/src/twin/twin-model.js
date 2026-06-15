@@ -105,6 +105,8 @@
           parentId: subzone.id, zoneId: subzone.zoneId,
           gates: gates, floors: null,
           machineRef: machineRef,
+          visual: cfg.visual || false,
+          assetLevel: cfg.assetLevel || null,
           bindings: bindings,
           style: cfg.style || null,
           image: cfg.image || null,
@@ -120,10 +122,16 @@
           label: cfg.label, sublabel: '',
           rect: rect, parentId: zone.id, zoneId: zone.id,
           gates: gates,
+          /* Optional polygon outline — points are rect-relative (same pattern as
+           * polygon zones). Convert to absolute world coords for the renderer. */
+          poly: cfg.points ? cfg.points.map(function (p) {
+            return { x: rect.x + p[0], y: rect.y + p[1] };
+          }) : null,
           floors: cfg.floors
             ? cfg.floors.map(function (f) { return { id: f.id, label: f.label, image: f.image || null }; })
             : null,
           machineIds: [],
+          assetLevel: cfg.assetLevel || null,
           style: cfg.style || null,
           image: cfg.image || null,
         });
@@ -165,6 +173,7 @@
           hint: cfg.hint || null,
           statusBinding: cfg.status ? cfg.status.datapoint : null,
           subzoneIds: [],
+          assetLevel: cfg.assetLevel || null,
           style: cfg.style || null,
           image: cfg.image || null,
         });

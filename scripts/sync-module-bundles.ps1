@@ -16,7 +16,7 @@
   Module ids to bundle. Default: the two demos + the smoke module.
 #>
 param(
-  [string[]] $ModuleIds = @('bag-filter-tracker', 'mollier-monitor', '_smoke')
+  [string[]] $ModuleIds = @('bag-filter-tracker', 'bag-filter-tracker-v1', 'mollier-monitor', '_smoke')
 )
 
 $ErrorActionPreference = 'Stop'
