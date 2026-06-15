@@ -31,6 +31,56 @@ A single top bar is owned by `src/ui/edit-session.js`. It adapts its buttons to 
 
 Both `layout-editor._save()` and `twin-editor._save()` check this return value. On failure the bar shows "Save failed — storage refused or full" and `dirty` stays `true`.
 
+## Saving and Making Edits Permanent
+
+Edits are stored in **two tiers**. Understanding the difference matters in production: **Save is per-browser; only Export makes a change permanent and fleet-wide.**
+
+### Tier 1 — Save (runtime, this browser only)
+
+Clicking **Save** calls `SFP.config.override(id, obj)` ([src/core/config-overrides.js](../src/core/config-overrides.js)), which:
+
+1. applies the change live in memory (`SFP.config.define`) — instant, no page refresh, and
+2. writes it into `localStorage` under the key **`sfp.configOverrides`** as a `{ configId: configObj }` map.
+
+On every page load, `applyPersistedOverrides()` re-applies every stored override, so your edit survives reloads **on that machine and browser profile**.
+
+What Save does **not** do:
+
+- It does **not** write to the OMI server or to any backend — there is no server-side save path.
+- It is **not** shared with other operator stations (localStorage is per-origin, per-browser-profile).
+- It is **lost** if the browser cache/profile is cleared.
+- It is refused on operator stations where the `canEdit` property is `false`.
+
+> Treat Save as a convenient working draft on one machine — not as deployment.
+
+### Tier 2 — Export (permanent, version-controlled, all stations)
+
+To make an edit permanent for everyone, export it to source and repackage the widget. Clicking **Export** calls `SFP.config.downloadConfigJs(id, filename)` and downloads a ready-to-commit `.js` file containing a single `SFP.config.define('<id>', { … })` built from the current (overridden) config.
+
+**Step-by-step:**
+
+1. In edit mode, make your changes and click **Export**. One `.js` file downloads per edited config.
+2. Replace the matching source file in `config/` with the downloaded file (see the map below), and commit it to version control.
+3. Repackage and re-import the widget:
+   ```powershell
+   # from the repo root
+   .\scripts\package-cwp.ps1 -WidgetName SmartFactoryControlRoom
+   # → dist\SmartFactoryControlRoom-v<version>.cwp   → import in OMI / CWP
+   ```
+4. In each browser that had a Tier-1 override, click **Reset overrides** (or run `SFP.config.clearOverride('<id>')` in the console) and reload, so the committed file config takes over and the now-redundant localStorage entry is dropped.
+
+After step 4 the change is baked into the deployed package — identical on every station, surviving cache clears.
+
+**Which file each export maps to:**
+
+| Edited page / config | Config `id`            | Commit the export as                                  |
+|----------------------|------------------------|-------------------------------------------------------|
+| A dashboard page     | `dashboard.<pageId>`   | `config/dashboards/<pageId>.dashboard.js`             |
+| Factory Map (twin)   | `twin.layout`          | `config/twin/twin.layout.config.js`                   |
+| Theme                | `theme.<id>`           | `config/theme.<id>.config.js`                         |
+
+> **Production note:** because there is no backend write-back, the durable workflow is always **Export → commit → repackage → re-import → Reset overrides**. If an edit only exists as a Tier-1 override, it lives on exactly one machine and will not appear on any other station.
+
 ## Layout Editor (Feature A)
 
 ### Per-Cell Controls

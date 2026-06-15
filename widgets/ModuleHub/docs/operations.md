@@ -21,6 +21,78 @@ the widget and runs the store service).
 
 ---
 
+## 0. Running / hosting ModuleHub
+
+> **The one rule: serve ModuleHub over HTTP. Never open `index.html` from disk
+> (`file://`).** Under `file://`, the shell cannot assemble a module: it builds
+> each sandboxed iframe by `fetch()`-ing the SDK files (`src/sdk/*.js`) and the
+> module code, and browsers **block `fetch()` of local files**. The visible
+> symptom is exactly what it looks like — **"Run preview" does nothing** and
+> modules fail to load. (Importing a `.mhmod` still works because that uses a
+> file picker, not `fetch` — which is why import can appear to work while
+> preview is dead. Don't be fooled.)
+
+### A. Local development / demo
+
+```powershell
+# from the repo root — zero-dependency static server
+.\scripts\dev-server.ps1            # serves the repo on http://localhost:8080
+```
+
+Then open **http://localhost:8080/widgets/ModuleHub/index.html**.
+
+- Previews and module loading work immediately, in **simulation** mode
+  (every subscribed tag random-walks 0–100 at 1 Hz — see §2).
+- With no `storeUrl`, the status dot is **grey** (local IndexedDB persistence)
+  and **"Deploy to Dashboard" is disabled** — that button needs a live store
+  service (see B) *and* a `storeUrl`, which standalone ModuleHub only receives
+  from an OMI host (see C). For local-only work, that's expected; develop and
+  preview here, and publish from a hosted instance.
+
+### B. Optional: the store service (shared persistence + Deploy)
+
+Needed only for durable, multi-station persistence and for the
+**Deploy to Dashboard** (publish-to-library) flow.
+
+```powershell
+cd services\modulehub-store
+npm install
+npm start                           # node server.js → listens on :8743
+# verify from the client machine:
+irm http://localhost:8743/health    # → { ok: true, rows: <n>, dbMB: <n>, ... }
+```
+
+For a Windows service install (nssm) and config (`config.json`: port, bind,
+`apiKey`, retention), see [§5.2](#52-store-service) and the
+[service README](../../../services/modulehub-store/README.md).
+
+### C. Production hosting (OMI / CWP)
+
+In production ModuleHub runs **inside OMI/CWP as a packaged `.cwp` widget**,
+which is where it receives its `storeUrl`/`storeKey`/`canEdit` properties.
+Package it, import it, and set the properties as described in the deployment
+runbook ([§5.1](#51-widget)):
+
+```powershell
+.\scripts\package-cwp.ps1 -WidgetName ModuleHub
+# → dist\ModuleHub-v<version>.cwp   → import in OMI / CWP, then set properties
+```
+
+`storeUrl = http://<server>:8743` is what turns the dot green and enables
+**Deploy to Dashboard**; `canEdit = true` is what makes Studio useful on that
+station.
+
+### Quick symptom → fix
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| "Run preview" does nothing; modules won't load | Opened via `file://` | Serve over HTTP (A) and open the `http://localhost:8080/...` URL |
+| Import works but everything else is dead | Same — import uses a file picker, not `fetch` | Same as above |
+| Status dot grey; "Deploy to Dashboard" disabled | No `storeUrl` (standalone) | Run the service (B) **and** host in OMI with `storeUrl` set (C) |
+| Dot amber, never green | Service down/unreachable or `storeKey` mismatch | Check `GET /health`; compare `storeKey` ↔ service `apiKey` (§8) |
+
+---
+
 ## 1. The system at a glance
 
 ModuleHub is one CWP widget plus one optional Windows service:

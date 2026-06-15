@@ -140,7 +140,11 @@ After starting, set the `storeUrl` property to `http://<server>:8743` and
 
 ### 4. Standalone / demo mode
 
-Open `index.html` from any static HTTP server (e.g. `npx serve widgets/ModuleHub`).
+Open `index.html` from any static **HTTP** server — e.g. `npx serve widgets/ModuleHub`,
+or `scripts\dev-server.ps1` then http://localhost:8080/widgets/ModuleHub/index.html.
+**Do not open it via `file://`** — previews and module loading need `fetch()`,
+which browsers block on local files (see
+[operations.md §0](operations.md#0-running--hosting-modulehub)).
 If no `omi:init` message arrives within 2 500 ms the shell enters **simulation
 mode** automatically: subscribed tags receive random-walk values at 1 s cadence
 with quality `'Simulated'`. No OMI host or store service is required to run the

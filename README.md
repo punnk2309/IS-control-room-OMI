@@ -91,15 +91,15 @@ prefix). See [docs/deployment.md](docs/deployment.md).
 
 ## Design principles
 
-- **Configuration over code** — behaviour changes are config edits; framework
+- **Configuration over code**: behaviour changes are config edits; framework
   code changes are rare and reviewed.
-- **No build toolchain** — plain script files run from `file://`, a static
+- **No build toolchain**: plain script files run from `file://`, a static
   server, or the OMI host. Nothing to install on an OT network; the packaging
   step is a zip.
-- **Widgets never know where data comes from** — they bind to logical
+- **Widgets never know where data comes from**: they bind to logical
   datapoint ids; the data hub routes to OMI tags, REST endpoints, derived
   calculations or simulation per datapoint.
-- **Honest data** — simulation and fallback data are always visibly badged;
+- **Honest data**: simulation and fallback data are always visibly badged;
   data quality (`Good/Uncertain/Bad/Simulated`) is surfaced in the UI.
-- **Fail soft** — a broken widget renders an error card; it never takes down
+- **Fail soft**: a broken widget renders an error card; it never takes down
   the dashboard.
