@@ -27,6 +27,7 @@ $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
 Write-Host "Serving $Root" -ForegroundColor Cyan
 Write-Host "Dashboard: http://localhost:$Port/widgets/SmartFactoryControlRoom/index.html" -ForegroundColor Green
+Write-Host "Dev Module: http://localhost:$Port/widgets/ModuleHub/index.html" -ForegroundColor Green
 
 try {
   while ($listener.IsListening) {
